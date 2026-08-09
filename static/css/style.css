@@ -618,6 +618,24 @@ input::placeholder, textarea::placeholder { color: var(--border); }
   margin-top: 0;
 }
 
+.scene-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  align-items: start;
+}
+@media (max-width: 820px) { .scene-content { grid-template-columns: 1fr; } }
+
+.scene-img-wrap { grid-column: 1; }
+
+.scene-img {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
 /* ── 유틸 ──────────────────────────── */
 .hidden { display: none !important; }
 

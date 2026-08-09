@@ -10,7 +10,7 @@ from script_generator import (
     generate_outro_script,
     generate_scene_prompts,
 )
-from gemini_image import generate_thumbnail
+from gemini_image import generate_image, generate_thumbnail
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
@@ -53,13 +53,23 @@ def run_generation(job_id, story_title, reference_script):
             jobs[job_id]["current_task"] = f"챕터 {i} 대본 작성 중... ({i}/10)"
             script = generate_chapter_script(i, 10, reference_script, story_title, setup["character_table"])
 
-            jobs[job_id]["current_task"] = f"챕터 {i} 장면 이미지 프롬프트 생성 중..."
+            jobs[job_id]["current_task"] = f"챕터 {i} 장면 프롬프트 생성 중..."
             scene_prompts = generate_scene_prompts(i, script, setup["character_base_prompts"])
 
+            scenes = []
+            for si, prompt in enumerate(scene_prompts, start=1):
+                jobs[job_id]["current_task"] = f"챕터 {i} 장면 {si}/{len(scene_prompts)} 이미지 생성 중 (Gemini)..."
+                try:
+                    generate_image(prompt, i, si)
+                    img_url = f"/images/chapter_{i:02d}_scene_{si:02d}.png"
+                except Exception:
+                    img_url = None
+                scenes.append({"prompt": prompt, "image_url": img_url})
+
             chapters.append({
-                "chapter_num":   i,
-                "script":        script,
-                "scene_prompts": scene_prompts,
+                "chapter_num": i,
+                "script":      script,
+                "scenes":      scenes,
             })
             jobs[job_id]["chapters"] = chapters
             jobs[job_id]["progress"] = 3 + i

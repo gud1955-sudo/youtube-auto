@@ -8,7 +8,7 @@ def _client():
     return genai.Client(api_key=GEMINI_API_KEY)
 
 
-def generate_image(prompt: str, chapter_num: int, output_dir: str = "output_images") -> str:
+def generate_image(prompt: str, chapter_num: int, scene_num: int = None, output_dir: str = "output_images") -> str:
     os.makedirs(output_dir, exist_ok=True)
 
     response = _client().models.generate_images(
@@ -21,7 +21,12 @@ def generate_image(prompt: str, chapter_num: int, output_dir: str = "output_imag
         ),
     )
 
-    image_path = os.path.join(output_dir, f"chapter_{chapter_num:02d}.png")
+    if scene_num is not None:
+        filename = f"chapter_{chapter_num:02d}_scene_{scene_num:02d}.png"
+    else:
+        filename = f"chapter_{chapter_num:02d}.png"
+
+    image_path = os.path.join(output_dir, filename)
     for img in response.generated_images:
         img.image.save(image_path)
     return image_path

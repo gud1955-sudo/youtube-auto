@@ -108,17 +108,26 @@ function renderChapters(chapters) {
   tabPanels.innerHTML = '';
 
   chapters.forEach((ch, idx) => {
-    const scenes = ch.scene_prompts || [];
+    const scenes = ch.scenes || [];
 
     // 장면별 이미지 프롬프트 목록
     const item = document.createElement('div');
     item.className = 'img-prompt-item';
-    const scenesHtml = scenes.map((p, si) => `
-      <div class="scene-row">
-        <span class="scene-badge">장면 ${si + 1}</span>
-        <textarea class="result-textarea img-prompt-ta" rows="4" readonly>${esc(p)}</textarea>
-        <button class="btn-copy scene-copy" onclick="copyField(this.previousElementSibling, this)">복사</button>
-      </div>`).join('');
+    const scenesHtml = scenes.map((s, si) => {
+      const imgHtml = s.image_url
+        ? `<img src="${s.image_url}?t=${Date.now()}" class="scene-img" alt="장면${si+1}" />
+           <a class="btn-img-dl" href="${s.image_url}" download="ch${ch.chapter_num}_scene${si+1}.png">&#128229; 다운로드</a>`
+        : `<div class="no-image" style="aspect-ratio:16/9;">이미지 생성 실패</div>`;
+      return `
+        <div class="scene-row">
+          <span class="scene-badge">장면 ${si + 1}</span>
+          <div class="scene-content">
+            <div class="scene-img-wrap">${imgHtml}</div>
+            <textarea class="result-textarea img-prompt-ta" rows="4" readonly>${esc(s.prompt)}</textarea>
+            <button class="btn-copy scene-copy" onclick="copyField(this.previousElementSibling, this)">복사</button>
+          </div>
+        </div>`;
+    }).join('');
     item.innerHTML = `<div class="img-prompt-label">챕터 ${ch.chapter_num} (${scenes.length}장면)</div>${scenesHtml}`;
     imgList.appendChild(item);
 
@@ -129,15 +138,13 @@ function renderChapters(chapters) {
     btn.onclick = () => switchTab(idx);
     tabBar.appendChild(btn);
 
-    // 탭 패널
+    // 탭 패널 - 대본만
     const panel = document.createElement('div');
     panel.className = 'tab-panel' + (idx === 0 ? ' active' : '');
     panel.innerHTML = `
-      <div>
-        <p class="result-label">&#128221; 대본</p>
-        <textarea class="result-textarea" rows="20" readonly>${esc(ch.script)}</textarea>
-        <p class="char-count">글자 수: ${ch.script ? ch.script.length.toLocaleString() : 0}자</p>
-      </div>`;
+      <p class="result-label">&#128221; 대본</p>
+      <textarea class="result-textarea" rows="22" readonly>${esc(ch.script)}</textarea>
+      <p class="char-count">글자 수: ${ch.script ? ch.script.length.toLocaleString() : 0}자</p>`;
     tabPanels.appendChild(panel);
   });
 }
@@ -173,7 +180,7 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
 function copyAllImgPrompts(btn) {
   if (!jobData || !jobData.chapters) return;
   const text = jobData.chapters.map(ch => {
-    const scenes = (ch.scene_prompts || []).map((p, i) => `[장면${i+1}]\n${p}`).join('\n\n');
+    const scenes = (ch.scenes || []).map((s, i) => `[장면${i+1}]\n${s.prompt || ''}`).join('\n\n');
     return `=== 챕터 ${ch.chapter_num} ===\n\n${scenes}`;
   }).join('\n\n');
   navigator.clipboard.writeText(text).then(() => {
