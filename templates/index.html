@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>시니어 유튜브 자동화</title>
+  <title>인생이야기 자동화</title>
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
@@ -12,137 +12,146 @@
   <header class="site-header">
     <div class="logo-area">
       <span class="logo-icon">&#9654;</span>
-      <span class="logo-text">Senior YouTube Automation</span>
+      <span class="logo-text">인생이야기 자동화</span>
     </div>
-    <p class="logo-sub">AI 콘티 · 대본 · 이미지 자동 생성 시스템</p>
+    <p class="logo-sub">참고 대본 → 제목 · 설명 · 썸네일 · 대본 · 이미지 프롬프트 자동 생성</p>
   </header>
 
   <main class="container">
 
-    <!-- ══════════════════════════════════════════
-         1단계: 제목 → 콘티 + 썸네일
-    ══════════════════════════════════════════ -->
-    <div class="stage-label">STEP 1 &nbsp;·&nbsp; 콘티 &amp; 썸네일 생성</div>
-    <div class="card" id="stage1Card">
+    <!-- ── 입력 카드 ── -->
+    <div class="card" id="inputCard">
 
-      <div class="grid-2" style="align-items:start;">
-
-        <div>
-          <div class="field" style="margin-bottom:0;">
-            <label for="s1_title">영상 제목</label>
-            <input type="text" id="s1_title" placeholder="예: 30년 만에 찾아온 아들의 비밀" />
-          </div>
-        </div>
-
-        <div id="thumbResult" class="thumb-placeholder">
-          <span>썸네일이 여기에 표시됩니다</span>
-        </div>
-
+      <div class="field">
+        <label for="story_title">영상 제목 / 주제 <span style="color:var(--red)">*</span></label>
+        <input type="text" id="story_title" placeholder="예: 30년 만에 찾아온 아들의 비밀" />
       </div>
 
-      <button id="s1Btn" class="btn-primary" style="margin-top:1.5rem;"
-              onclick="startContiGen()">
-        &#10024; 콘티 + 썸네일 자동 생성
+      <div class="field" style="margin-bottom:0;">
+        <label for="reference_script">
+          참고 대본 <span class="hint">(선택 — 붙여넣으면 등장인물·문장을 바꿔 새로 창작합니다)</span>
+        </label>
+        <textarea id="reference_script" class="script-input"
+          placeholder="여기에 참고 대본을 붙여넣으세요.&#10;없으면 제목만으로도 생성됩니다."></textarea>
+        <p id="charCountInput" class="char-count"></p>
+      </div>
+
+      <button id="genBtn" class="btn-primary" onclick="startGeneration()">
+        &#10024; 전체 자동 생성 시작
       </button>
 
-      <!-- 진행 -->
-      <div id="s1Progress" class="hidden" style="margin-top:1.2rem;">
-        <p id="s1Task" class="task-text">준비 중...</p>
-        <div class="progress-track"><div id="s1Bar" class="progress-bar" style="width:0%"></div></div>
-      </div>
+    </div><!-- #inputCard -->
 
-      <!-- 콘티 결과 -->
-      <div id="contiResultWrap" class="hidden" style="margin-top:1.5rem;">
-        <label class="field-label">생성된 콘티 <span class="hint">(수정 후 2단계에서 사용 가능)</span></label>
-        <textarea id="contiOutput" class="conti-textarea" style="height:320px;"></textarea>
-        <div style="display:flex;gap:0.8rem;margin-top:0.6rem;flex-wrap:wrap;">
-          <button class="btn-copy" onclick="copyContiToStage2()">&#8659; 2단계로 가져가기</button>
-          <a id="thumbDownload" class="btn-copy hidden" download="thumbnail.png">&#128229; 썸네일 다운로드</a>
-          <span id="thumbStatus" class="hint" style="line-height:2.2;"></span>
+    <!-- ── 진행 상황 ── -->
+    <div id="progressSection" class="hidden" style="margin-top:2rem;">
+      <div class="card">
+        <p id="taskText" class="task-text">준비 중...</p>
+        <div class="progress-track">
+          <div id="progressBar" class="progress-bar" style="width:0%"></div>
         </div>
+        <p id="progressLabel" class="progress-label">0 / 14</p>
       </div>
+    </div>
 
-    </div><!-- #stage1Card -->
-
-
-    <!-- ══════════════════════════════════════════
-         2단계: 콘티 → 대본 + 챕터 이미지
-    ══════════════════════════════════════════ -->
-    <div class="stage-label" style="margin-top:2.5rem;">STEP 2 &nbsp;·&nbsp; 대본 &amp; 챕터 이미지 생성</div>
-    <div class="card" id="stage2Card">
-
-      <div class="grid-2" style="align-items:start;">
-
-        <div>
-          <div class="field" style="margin-bottom:0;">
-            <label for="s2_chapters">생성할 챕터 수</label>
-            <select id="s2_chapters">
-              <option value="1">1챕터</option>
-              <option value="2">2챕터</option>
-              <option value="3">3챕터</option>
-              <option value="4">4챕터</option>
-              <option value="5">5챕터</option>
-              <option value="6">6챕터</option>
-              <option value="7">7챕터</option>
-              <option value="8">8챕터</option>
-              <option value="9">9챕터</option>
-              <option value="10" selected>10챕터</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="field" style="margin-bottom:0;">
-          <label for="contiInput">콘티 입력</label>
-          <textarea id="contiInput" class="conti-textarea"></textarea>
-        </div>
-
-      </div>
-
-      <button id="s2Btn" class="btn-primary" style="margin-top:1.5rem;"
-              onclick="startScriptGen()">
-        &#9889; 대본 + 챕터 이미지 자동 생성
-      </button>
-
-      <!-- 진행 -->
-      <div id="s2Progress" class="hidden" style="margin-top:1.2rem;">
-        <p id="s2Task" class="task-text">준비 중...</p>
-        <div class="progress-track"><div id="s2Bar" class="progress-bar" style="width:0%"></div></div>
-        <p id="s2Label" class="progress-label">0 / 0</p>
-      </div>
-
-    </div><!-- #stage2Card -->
-
-
-    <!-- ══════════════════════════════════════════
-         결과
-    ══════════════════════════════════════════ -->
+    <!-- ── 결과 영역 ── -->
     <div id="resultSection" class="hidden" style="margin-top:2rem;">
 
-      <div class="card" style="margin-bottom:1.5rem;">
-        <h2 class="card-title"><span class="accent">&#128227;</span> 유튜브 메타데이터</h2>
-        <textarea id="metaOutput" class="result-textarea" rows="8" readonly></textarea>
-        <button class="btn-copy" onclick="copyMeta()">복사</button>
+      <!-- 제목 -->
+      <div class="result-block hidden" id="blockTitles">
+        <div class="result-block-header">
+          <span class="result-block-icon">&#128196;</span> 제목 추천 5개
+        </div>
+        <textarea id="outTitles" class="result-textarea" rows="7" readonly></textarea>
+        <button class="btn-copy" onclick="copyField('outTitles', this)">복사</button>
       </div>
 
-      <div class="card" style="margin-bottom:1.5rem;">
-        <h2 class="card-title"><span class="accent">&#128196;</span> 전체 대본</h2>
+      <!-- 유튜브 설명 -->
+      <div class="result-block hidden" id="blockMeta">
+        <div class="result-block-header">
+          <span class="result-block-icon">&#128227;</span> 유튜브 설명란 &amp; 해시태그
+        </div>
+        <textarea id="outMeta" class="result-textarea" rows="6" readonly></textarea>
+        <button class="btn-copy" onclick="copyField('outMeta', this)">복사</button>
+      </div>
+
+      <!-- 등장인물 + 썸네일 -->
+      <div class="result-block hidden" id="blockChars">
+        <div class="result-block-header">
+          <span class="result-block-icon">&#128100;</span> 등장인물 설정 &amp; 썸네일
+        </div>
+        <div class="grid-2" style="align-items:start;gap:1.5rem;">
+          <div>
+            <p class="result-label">등장인물 설정</p>
+            <textarea id="outChars" class="result-textarea" rows="8" readonly></textarea>
+            <button class="btn-copy" onclick="copyField('outChars', this)">복사</button>
+
+            <p class="result-label" style="margin-top:1.2rem;">썸네일 프롬프트</p>
+            <textarea id="outThumbPrompt" class="result-textarea" rows="6" readonly></textarea>
+            <button class="btn-copy" onclick="copyField('outThumbPrompt', this)">복사</button>
+          </div>
+          <div>
+            <p class="result-label">썸네일 이미지</p>
+            <div id="thumbBox" class="thumb-placeholder">
+              <span>생성 중...</span>
+            </div>
+            <a id="thumbDl" class="btn-img-dl hidden" download="thumbnail.png">&#128229; 썸네일 다운로드</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 인물 베이스 프롬프트 -->
+      <div class="result-block hidden" id="blockBase">
+        <div class="result-block-header">
+          <span class="result-block-icon">&#127775;</span> 인물 베이스 프롬프트 (Flow용)
+        </div>
+        <textarea id="outBase" class="result-textarea" rows="7" readonly></textarea>
+        <button class="btn-copy" onclick="copyField('outBase', this)">복사</button>
+      </div>
+
+      <!-- 인트로 영상 프롬프트 -->
+      <div class="result-block hidden" id="blockIntroPrompt">
+        <div class="result-block-header">
+          <span class="result-block-icon">&#127916;</span> 인트로 후킹 영상 프롬프트 (Flow용)
+        </div>
+        <textarea id="outIntroPrompt" class="result-textarea" rows="8" readonly></textarea>
+        <button class="btn-copy" onclick="copyField('outIntroPrompt', this)">복사</button>
+      </div>
+
+      <!-- 챕터별 이미지 프롬프트 -->
+      <div class="result-block hidden" id="blockImgPrompts">
+        <div class="result-block-header" style="justify-content:space-between;">
+          <span><span class="result-block-icon">&#128247;</span> 챕터별 이미지 프롬프트 (Flow용)</span>
+          <button class="btn-copy" style="margin-top:0;" onclick="copyAllImgPrompts(this)">전체 복사</button>
+        </div>
+        <div id="imgPromptList"></div>
+      </div>
+
+      <!-- 대본 다운로드 -->
+      <div class="result-block hidden" id="blockDownload">
+        <div class="result-block-header">
+          <span class="result-block-icon">&#128229;</span> 전체 대본
+        </div>
+        <p class="hint" style="margin-bottom:1rem;">서론 + 챕터 1~10 + 아웃트로 합본 (Vrew용 .txt)</p>
         <button id="downloadBtn" class="btn-primary" style="width:auto;padding:0.8rem 2rem;">
-          &#128229; 전체 대본 다운로드 (Vrew용)
+          전체 대본 다운로드
         </button>
       </div>
 
-      <div class="card">
-        <h2 class="card-title"><span class="accent">&#127916;</span> 챕터별 결과</h2>
+      <!-- 챕터별 탭 -->
+      <div class="result-block hidden" id="blockChapterTabs">
+        <div class="result-block-header">
+          <span class="result-block-icon">&#128221;</span> 챕터별 대본 &amp; 이미지
+        </div>
         <div id="tabBar" class="tab-bar"></div>
         <div id="tabPanels"></div>
       </div>
 
-    </div>
+    </div><!-- #resultSection -->
 
   </main>
 
   <footer class="site-footer">
-    <p>Powered by Claude &amp; Gemini &nbsp;|&nbsp; Senior YouTube Automation</p>
+    <p>Powered by Claude &amp; Gemini &nbsp;|&nbsp; 인생이야기 자동화</p>
   </footer>
 
   <script src="/static/js/script.js"></script>

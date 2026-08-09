@@ -534,6 +534,65 @@ input::placeholder, textarea::placeholder { color: var(--border); }
   text-align: right;
 }
 
+/* ── 참고 대본 입력 textarea ──────────────────────────── */
+.script-input {
+  width: 100%;
+  height: 260px;
+  resize: vertical;
+  font-size: 0.9rem;
+  line-height: 1.8;
+  font-family: 'Malgun Gothic', sans-serif;
+}
+
+/* ── 결과 블록 ──────────────────────────── */
+.result-block {
+  background: var(--navy2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.6rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.result-block-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gold2);
+  margin-bottom: 1.1rem;
+  letter-spacing: 0.03em;
+}
+
+.result-block-icon {
+  font-size: 1.1rem;
+}
+
+/* ── 이미지 프롬프트 목록 ──────────────────────────── */
+.img-prompt-item {
+  margin-bottom: 1.2rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid var(--border);
+}
+.img-prompt-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.img-prompt-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 0.4rem;
+  letter-spacing: 0.05em;
+}
+
+.img-prompt-ta {
+  font-size: 0.85rem;
+}
+
 /* ── 유틸 ──────────────────────────── */
 .hidden { display: none !important; }
 
