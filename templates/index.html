@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>시니어 유튜브 자동화</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <div class="bg-overlay"></div>
+
+  <header class="site-header">
+    <div class="logo-area">
+      <span class="logo-icon">&#9654;</span>
+      <span class="logo-text">Senior YouTube Automation</span>
+    </div>
+    <p class="logo-sub">AI 콘티 · 대본 · 이미지 자동 생성 시스템</p>
+  </header>
+
+  <main class="container">
+
+    <!-- ══════════════════════════════════════════
+         1단계: 제목 → 콘티 + 썸네일
+    ══════════════════════════════════════════ -->
+    <div class="stage-label">STEP 1 &nbsp;·&nbsp; 콘티 &amp; 썸네일 생성</div>
+    <div class="card" id="stage1Card">
+
+      <div class="grid-2" style="align-items:start;">
+
+        <div>
+          <div class="field" style="margin-bottom:0;">
+            <label for="s1_title">영상 제목</label>
+            <input type="text" id="s1_title" placeholder="예: 30년 만에 찾아온 아들의 비밀" />
+          </div>
+        </div>
+
+        <div id="thumbResult" class="thumb-placeholder">
+          <span>썸네일이 여기에 표시됩니다</span>
+        </div>
+
+      </div>
+
+      <button id="s1Btn" class="btn-primary" style="margin-top:1.5rem;"
+              onclick="startContiGen()">
+        &#10024; 콘티 + 썸네일 자동 생성
+      </button>
+
+      <!-- 진행 -->
+      <div id="s1Progress" class="hidden" style="margin-top:1.2rem;">
+        <p id="s1Task" class="task-text">준비 중...</p>
+        <div class="progress-track"><div id="s1Bar" class="progress-bar" style="width:0%"></div></div>
+      </div>
+
+      <!-- 콘티 결과 -->
+      <div id="contiResultWrap" class="hidden" style="margin-top:1.5rem;">
+        <label class="field-label">생성된 콘티 <span class="hint">(수정 후 2단계에서 사용 가능)</span></label>
+        <textarea id="contiOutput" class="conti-textarea" style="height:320px;"></textarea>
+        <div style="display:flex;gap:0.8rem;margin-top:0.6rem;flex-wrap:wrap;">
+          <button class="btn-copy" onclick="copyContiToStage2()">&#8659; 2단계로 가져가기</button>
+          <a id="thumbDownload" class="btn-copy hidden" download="thumbnail.png">&#128229; 썸네일 다운로드</a>
+          <span id="thumbStatus" class="hint" style="line-height:2.2;"></span>
+        </div>
+      </div>
+
+    </div><!-- #stage1Card -->
+
+
+    <!-- ══════════════════════════════════════════
+         2단계: 콘티 → 대본 + 챕터 이미지
+    ══════════════════════════════════════════ -->
+    <div class="stage-label" style="margin-top:2.5rem;">STEP 2 &nbsp;·&nbsp; 대본 &amp; 챕터 이미지 생성</div>
+    <div class="card" id="stage2Card">
+
+      <div class="grid-2" style="align-items:start;">
+
+        <div>
+          <div class="field" style="margin-bottom:0;">
+            <label for="s2_chapters">생성할 챕터 수</label>
+            <select id="s2_chapters">
+              <option value="1">1챕터</option>
+              <option value="2">2챕터</option>
+              <option value="3">3챕터</option>
+              <option value="4">4챕터</option>
+              <option value="5">5챕터</option>
+              <option value="6">6챕터</option>
+              <option value="7">7챕터</option>
+              <option value="8">8챕터</option>
+              <option value="9">9챕터</option>
+              <option value="10" selected>10챕터</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:0;">
+          <label for="contiInput">콘티 입력</label>
+          <textarea id="contiInput" class="conti-textarea"></textarea>
+        </div>
+
+      </div>
+
+      <button id="s2Btn" class="btn-primary" style="margin-top:1.5rem;"
+              onclick="startScriptGen()">
+        &#9889; 대본 + 챕터 이미지 자동 생성
+      </button>
+
+      <!-- 진행 -->
+      <div id="s2Progress" class="hidden" style="margin-top:1.2rem;">
+        <p id="s2Task" class="task-text">준비 중...</p>
+        <div class="progress-track"><div id="s2Bar" class="progress-bar" style="width:0%"></div></div>
+        <p id="s2Label" class="progress-label">0 / 0</p>
+      </div>
+
+    </div><!-- #stage2Card -->
+
+
+    <!-- ══════════════════════════════════════════
+         결과
+    ══════════════════════════════════════════ -->
+    <div id="resultSection" class="hidden" style="margin-top:2rem;">
+
+      <div class="card" style="margin-bottom:1.5rem;">
+        <h2 class="card-title"><span class="accent">&#128227;</span> 유튜브 메타데이터</h2>
+        <textarea id="metaOutput" class="result-textarea" rows="8" readonly></textarea>
+        <button class="btn-copy" onclick="copyMeta()">복사</button>
+      </div>
+
+      <div class="card" style="margin-bottom:1.5rem;">
+        <h2 class="card-title"><span class="accent">&#128196;</span> 전체 대본</h2>
+        <button id="downloadBtn" class="btn-primary" style="width:auto;padding:0.8rem 2rem;">
+          &#128229; 전체 대본 다운로드 (Vrew용)
+        </button>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title"><span class="accent">&#127916;</span> 챕터별 결과</h2>
+        <div id="tabBar" class="tab-bar"></div>
+        <div id="tabPanels"></div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Powered by Claude &amp; Gemini &nbsp;|&nbsp; Senior YouTube Automation</p>
+  </footer>
+
+  <script src="/static/js/script.js"></script>
+</body>
+</html>
