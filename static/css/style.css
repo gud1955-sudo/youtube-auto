@@ -355,9 +355,22 @@ input::placeholder, textarea::placeholder { color: var(--border); }
   box-shadow: 0 0 10px rgba(201,168,76,0.5);
 }
 
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
 .progress-label {
   font-size: 0.82rem;
   color: var(--muted);
+}
+.time-info {
+  font-size: 0.82rem;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── 결과 textarea ──────────────────────────── */

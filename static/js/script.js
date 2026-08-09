@@ -1,4 +1,6 @@
 let jobData = null;
+let startTime = null;
+let timerInterval = null;
 
 // ── 글자수 카운터 ──────────────────────────────────────────────
 document.getElementById('reference_script').addEventListener('input', function () {
@@ -16,6 +18,8 @@ async function startGeneration() {
   document.getElementById('progressSection').classList.remove('hidden');
   document.getElementById('resultSection').classList.remove('hidden');
   resetResults();
+  startTime = Date.now();
+  startTimer();
   setProgress(0, 14, '서버에 요청 중...');
 
   const fd = new FormData();
@@ -44,12 +48,14 @@ function pollStatus(jobId) {
 
       if (data.status === 'error') {
         clearInterval(interval);
+        stopTimer();
         showError(data.error);
         document.getElementById('genBtn').disabled = false;
       }
 
       if (data.status === 'done') {
         clearInterval(interval);
+        stopTimer();
         renderFinal(data);
         document.getElementById('genBtn').disabled = false;
         document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
@@ -194,8 +200,42 @@ function copyAllImgPrompts(btn) {
 // ── 유틸 ─────────────────────────────────────────────────────
 function setProgress(done, total, taskText) {
   document.getElementById('taskText').textContent    = taskText;
-  document.getElementById('progressLabel').textContent = `${done} / ${total}`;
+  document.getElementById('progressLabel').textContent = `${done} / ${total} 단계`;
   document.getElementById('progressBar').style.width  = `${total > 0 ? (done / total) * 100 : 0}%`;
+  updateTimeInfo(done, total);
+}
+
+function updateTimeInfo(done, total) {
+  if (!startTime) return;
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  let text = `경과 ${fmtTime(elapsed)}`;
+  if (done > 0 && done < total) {
+    const estimated = Math.floor(elapsed / done * total);
+    const remaining = Math.max(0, estimated - elapsed);
+    text += `  |  예상 남은 시간 ${fmtTime(remaining)}`;
+  } else if (done >= total) {
+    text += `  |  완료`;
+  }
+  document.getElementById('timeInfo').textContent = text;
+}
+
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const el = document.getElementById('progressLabel');
+    const match = el.textContent.match(/(\d+)\s*\/\s*(\d+)/);
+    if (match) updateTimeInfo(parseInt(match[1]), parseInt(match[2]));
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function fmtTime(sec) {
+  if (sec < 60) return `${sec}초`;
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return s > 0 ? `${m}분 ${s}초` : `${m}분`;
 }
 
 function showError(msg) {
