@@ -8,10 +8,9 @@ document.getElementById('reference_script').addEventListener('input', function (
 
 // ── 생성 시작 ─────────────────────────────────────────────────
 async function startGeneration() {
-  const title  = document.getElementById('story_title').value.trim();
   const script = document.getElementById('reference_script').value.trim();
 
-  if (!title) { alert('영상 제목을 입력해주세요.'); return; }
+  if (!script) { alert('참고 대본을 입력해주세요.'); return; }
 
   document.getElementById('genBtn').disabled = true;
   document.getElementById('progressSection').classList.remove('hidden');
@@ -20,7 +19,6 @@ async function startGeneration() {
   setProgress(0, 14, '서버에 요청 중...');
 
   const fd = new FormData();
-  fd.append('story_title',      title);
   fd.append('reference_script', script);
 
   try {
@@ -89,6 +87,11 @@ function renderPartial(data) {
     showBlock('blockChapterTabs');
     renderChapters(data.chapters);
   }
+
+  if (data.insertion_guide && data.insertion_guide.length > 0) {
+    showBlock('blockInsertGuide');
+    document.getElementById('outInsertGuide').value = data.insertion_guide.join('\n');
+  }
 }
 
 // ── 최종 렌더 ─────────────────────────────────────────────────
@@ -116,7 +119,7 @@ function renderChapters(chapters) {
     const scenesHtml = scenes.map((s, si) => {
       const imgHtml = s.image_url
         ? `<img src="${s.image_url}?t=${Date.now()}" class="scene-img" alt="장면${si+1}" />
-           <a class="btn-img-dl" href="${s.image_url}" download="ch${ch.chapter_num}_scene${si+1}.png">&#128229; 다운로드</a>`
+           <a class="btn-img-dl" href="${s.image_url}" download="사진${s.photo_num}.png">&#128229; 다운로드</a>`
         : `<div class="no-image" style="aspect-ratio:16/9;">이미지 생성 실패</div>`;
       return `
         <div class="scene-row">
@@ -157,8 +160,7 @@ function switchTab(idx) {
 // ── 전체 대본 다운로드 ────────────────────────────────────────
 document.getElementById('downloadBtn').addEventListener('click', () => {
   if (!jobData) return;
-  const title = document.getElementById('story_title').value.trim();
-  let text = `■ ${title}\n\n`;
+  let text = '';
 
   if (jobData.intro) text += jobData.intro + '\n\n';
   (jobData.chapters || []).forEach(ch => {
@@ -207,7 +209,7 @@ function showBlock(id) {
 
 function resetResults() {
   ['blockTitles','blockMeta','blockChars','blockBase','blockIntroPrompt',
-   'blockImgPrompts','blockDownload','blockChapterTabs'].forEach(id => {
+   'blockImgPrompts','blockInsertGuide','blockDownload','blockChapterTabs'].forEach(id => {
     document.getElementById(id).classList.add('hidden');
   });
   document.getElementById('imgPromptList').innerHTML = '';
