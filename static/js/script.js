@@ -74,10 +74,13 @@ function renderImages(images) {
       ? `<img src="${img.image_url}?t=${Date.now()}" class="scene-img" alt="사진${img.photo_num}" />
          <a class="btn-img-dl" href="${img.image_url}" download="사진${img.photo_num}.png">&#128229; 다운로드</a>`
       : `<div class="no-image" style="aspect-ratio:16/9;">생성 실패</div>`;
+    const summaryHtml = img.summary
+      ? `<p class="result-label" style="margin:0.5rem 0 0.2rem;">&#128204; ${esc(img.summary)}</p>` : '';
     div.innerHTML = `
       <span class="scene-badge">사진 ${img.photo_num}</span>
       <div class="scene-content">
         <div class="scene-img-wrap">${imgHtml}</div>
+        ${summaryHtml}
         <textarea class="result-textarea img-prompt-ta" rows="3" readonly>${esc(img.prompt)}</textarea>
         <button class="btn-copy scene-copy" onclick="copyField(this.previousElementSibling, this)">복사</button>
       </div>`;

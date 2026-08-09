@@ -1,4 +1,5 @@
 import os
+import json
 import threading
 import uuid
 from flask import Flask, render_template, request, jsonify, send_from_directory
@@ -12,17 +13,17 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 jobs = {}
 
 
-def run_generation(job_id, prompts):
+def run_generation(job_id, scenes):
     try:
-        total = len(prompts)
+        total = len(scenes)
         jobs[job_id]["total"] = total
         images = []
 
-        for idx, prompt in enumerate(prompts):
+        for idx, scene in enumerate(scenes):
             photo_num = idx + 1
             jobs[job_id]["current_task"] = f"사진 {photo_num} / {total} 생성 중..."
             try:
-                generate_image(prompt, 0, photo_num)
+                generate_image(scene["prompt"], 0, photo_num)
                 img_url = f"/images/사진{photo_num}.png"
             except Exception as e:
                 img_url = None
@@ -30,7 +31,8 @@ def run_generation(job_id, prompts):
 
             images.append({
                 "photo_num": photo_num,
-                "prompt":    prompt,
+                "prompt":    scene["prompt"],
+                "summary":   scene.get("summary", ""),
                 "image_url": img_url,
             })
             jobs[job_id]["images"] = images
@@ -44,14 +46,39 @@ def run_generation(job_id, prompts):
         jobs[job_id]["status"] = "error"
 
 
+def parse_input(raw):
+    """JSON 배열이면 image_prompt 추출, 아니면 한 줄씩 프롬프트로 처리"""
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            scenes = []
+            for item in data:
+                prompt = item.get("image_prompt", "").strip()
+                if prompt:
+                    scenes.append({
+                        "prompt":  prompt,
+                        "summary": item.get("scene_summary", ""),
+                    })
+            return scenes
+    except (json.JSONDecodeError, AttributeError):
+        pass
+
+    # 일반 텍스트: 한 줄에 하나씩
+    return [
+        {"prompt": line.strip(), "summary": ""}
+        for line in raw.splitlines()
+        if line.strip()
+    ]
+
+
 @app.route("/generate", methods=["POST"])
 def generate():
     raw = request.form.get("prompts", "").strip()
     if not raw:
         return jsonify({"error": "프롬프트를 입력해주세요."}), 400
 
-    prompts = [line.strip() for line in raw.splitlines() if line.strip()]
-    if not prompts:
+    scenes = parse_input(raw)
+    if not scenes:
         return jsonify({"error": "프롬프트를 입력해주세요."}), 400
 
     job_id = str(uuid.uuid4())
@@ -65,7 +92,7 @@ def generate():
 
     threading.Thread(
         target=run_generation,
-        args=(job_id, prompts),
+        args=(job_id, scenes),
         daemon=True,
     ).start()
 

@@ -23,10 +23,10 @@
     <div class="card" id="inputCard">
       <div class="field" style="margin-bottom:0;">
         <label for="prompts">
-          이미지 프롬프트 <span class="hint">(한 줄에 하나씩 — 순서대로 사진1, 사진2... 저장됩니다)</span>
+          이미지 프롬프트 <span class="hint">(Claude JSON 그대로 붙여넣기 OK — 한 줄씩 텍스트도 OK)</span>
         </label>
         <textarea id="prompts" class="script-input"
-          placeholder="A cinematic 16:9 photorealistic scene of...&#10;A cinematic 16:9 photorealistic scene of...&#10;..."></textarea>
+          placeholder='Claude가 만든 JSON 배열을 그대로 붙여넣으세요.&#10;[{"scene_summary":"...", "image_prompt":"..."}, ...]&#10;&#10;또는 프롬프트를 한 줄에 하나씩 입력해도 됩니다.'></textarea>
         <p id="charCountInput" class="char-count"></p>
       </div>
       <button id="genBtn" class="btn-primary" onclick="startGeneration()">
