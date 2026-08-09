@@ -54,14 +54,14 @@ def generate_setup(reference_script: str, story_title: str) -> dict:
 - 텍스트·자막·배지 없음
 
 [인물베이스프롬프트]
-각 등장인물의 Flow AI 이미지 생성용 베이스 프롬프트 (영어, 서술형)
+각 등장인물의 Flow Nano Banana 이미지 생성용 베이스 프롬프트 (영어, 서술형)
 형식: @캐릭터이름: (묘사 문장 2~3개)
 - 반드시 "East Asian Korean" 외모
 - 나이·직업에 맞는 사실적 디테일 포함
 - strikingly attractive / naturally attractive + age-appropriate 수식어 함께 사용
 
 [인트로영상프롬프트]
-서론에서 핵심 대사를 치는 장면 2~3컷 (Flow 영상용)
+서론에서 핵심 대사를 치는 장면 2~3컷 (Flow Veo용)
 각 컷 형식:
 컷 1: @캐릭터이름 / 행동·표정 / 대사 원문 / 카메라 워크 / 환경·조명 / 분위기 / 길이 3~5초
 - 위 [인물베이스프롬프트]의 @이름 태그 그대로 사용
@@ -89,12 +89,12 @@ def generate_setup(reference_script: str, story_title: str) -> dict:
         return raw[start:end].strip()
 
     return {
-        "titles":                extract("제목5"),
-        "youtube_meta":          extract("유튜브설명"),
-        "character_table":       extract("등장인물"),
-        "thumbnail_prompt":      extract("썸네일프롬프트"),
+        "titles":                 extract("제목5"),
+        "youtube_meta":           extract("유튜브설명"),
+        "character_table":        extract("등장인물"),
+        "thumbnail_prompt":       extract("썸네일프롬프트"),
         "character_base_prompts": extract("인물베이스프롬프트"),
-        "intro_video_prompts":   extract("인트로영상프롬프트"),
+        "intro_video_prompts":    extract("인트로영상프롬프트"),
     }
 
 
@@ -156,6 +156,7 @@ def generate_chapter_script(
 규칙:
 - 반드시 3,000~3,500자 사이로 작성 (글자 수 엄수)
 - 챕터 제목·번호 없이 나레이션 본문만 출력
+- 챕터 안에 장면 전환이 자연스럽게 3~4번 일어나도록 구성 (장소·시간·상황이 바뀔 때 빈 줄 하나로 구분)
 - 시니어가 공감하는 감성적·현실적 문체
 - {continuation_note}
 """
@@ -209,30 +210,64 @@ def generate_outro_script(reference_script: str, story_title: str) -> str:
     return response.content[0].text.strip()
 
 
-def generate_chapter_image_prompt(
+def generate_scene_prompts(
     chapter_num: int,
     chapter_script: str,
     character_base_prompts: str,
-) -> str:
-    prompt = f"""다음 챕터 대본을 바탕으로 Flow AI 이미지 생성용 영어 프롬프트를 작성하세요.
+) -> list:
+    """챕터 대본을 장면별로 분석해 Flow Nano Banana용 이미지 프롬프트 3~4개 생성"""
+    prompt = f"""다음 챕터 대본을 장면별로 분석하여 Google Flow의 Nano Banana 모델용 이미지 프롬프트를 작성하세요.
 
 [고정 인물 베이스 프롬프트]
 {character_base_prompts}
 
-챕터 번호: {chapter_num}
-챕터 내용 요약: {chapter_script[:500]}
+챕터 {chapter_num} 대본:
+{chapter_script}
 
 규칙:
-- 영어로만 작성, 서술형 한 문단 (5~7문장)
-- 위 베이스 프롬프트의 @캐릭터이름 태그를 그대로 사용해 얼굴 일관성 유지
-- "인물 행동 → 카메라 워크 → 공간·조명 → 분위기" 순서로 서술
-- Photorealistic, cinematic, Korean drama style, East Asian 포함
-- 텍스트·자막 없음
-- 프롬프트만 출력
+- 대본에서 장소·시간·상황이 바뀌는 지점을 기준으로 3~4개 장면으로 나눔
+- 각 장면마다 Nano Banana용 영어 프롬프트 1개 작성
+- 각 프롬프트는 5~6문장, 서술형
+- 위 베이스 프롬프트의 @캐릭터이름 태그 그대로 사용 (얼굴 일관성)
+- "인물 행동·표정 → 카메라 워크 → 공간·조명 → 분위기" 순서
+- Photorealistic, cinematic, Korean drama still, East Asian 포함
+- 텍스트·자막·워터마크 없음
+
+출력 형식 (이 형식만 사용, 다른 설명 없이):
+[장면1]
+(프롬프트 영어 문장)
+
+[장면2]
+(프롬프트 영어 문장)
+
+[장면3]
+(프롬프트 영어 문장)
+
+[장면4] (있을 경우만)
+(프롬프트 영어 문장)
 """
     response = _client().messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=400,
+        max_tokens=1500,
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.content[0].text.strip()
+    raw = response.content[0].text
+
+    scenes = []
+    i = 1
+    while True:
+        tag = f"[장면{i}]"
+        start = raw.find(tag)
+        if start == -1:
+            break
+        start = raw.find("\n", start) + 1
+        next_tag = f"[장면{i + 1}]"
+        end = raw.find(next_tag)
+        if end == -1:
+            end = len(raw)
+        text = raw[start:end].strip()
+        if text:
+            scenes.append(text)
+        i += 1
+
+    return scenes if scenes else [raw.strip()]

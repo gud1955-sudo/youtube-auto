@@ -108,14 +108,18 @@ function renderChapters(chapters) {
   tabPanels.innerHTML = '';
 
   chapters.forEach((ch, idx) => {
-    // 이미지 프롬프트 목록
+    const scenes = ch.scene_prompts || [];
+
+    // 장면별 이미지 프롬프트 목록
     const item = document.createElement('div');
     item.className = 'img-prompt-item';
-    item.innerHTML = `
-      <div class="img-prompt-label">챕터 ${ch.chapter_num}</div>
-      <textarea class="result-textarea img-prompt-ta" rows="4" readonly>${esc(ch.image_prompt)}</textarea>
-      <button class="btn-copy" onclick="copyField(this.previousElementSibling, this)">복사</button>
-    `;
+    const scenesHtml = scenes.map((p, si) => `
+      <div class="scene-row">
+        <span class="scene-badge">장면 ${si + 1}</span>
+        <textarea class="result-textarea img-prompt-ta" rows="4" readonly>${esc(p)}</textarea>
+        <button class="btn-copy scene-copy" onclick="copyField(this.previousElementSibling, this)">복사</button>
+      </div>`).join('');
+    item.innerHTML = `<div class="img-prompt-label">챕터 ${ch.chapter_num} (${scenes.length}장면)</div>${scenesHtml}`;
     imgList.appendChild(item);
 
     // 탭 버튼
@@ -126,24 +130,13 @@ function renderChapters(chapters) {
     tabBar.appendChild(btn);
 
     // 탭 패널
-    const imgHtml = ch.image_url
-      ? `<img class="chapter-image" src="${ch.image_url}?t=${Date.now()}" alt="챕터 ${ch.chapter_num}" />
-         <a class="btn-img-dl" href="${ch.image_url}" download="chapter_${String(ch.chapter_num).padStart(2,'0')}.png">&#128229; 이미지 다운로드</a>`
-      : `<div class="no-image">이미지 생성 실패</div>`;
-
     const panel = document.createElement('div');
     panel.className = 'tab-panel' + (idx === 0 ? ' active' : '');
     panel.innerHTML = `
-      <div class="chapter-result-grid">
-        <div>
-          <p class="result-label">&#128221; 대본</p>
-          <textarea class="result-textarea" rows="20" readonly>${esc(ch.script)}</textarea>
-          <p class="char-count">글자 수: ${ch.script ? ch.script.length.toLocaleString() : 0}자</p>
-        </div>
-        <div>
-          <p class="result-label">&#128247; 생성 이미지</p>
-          ${imgHtml}
-        </div>
+      <div>
+        <p class="result-label">&#128221; 대본</p>
+        <textarea class="result-textarea" rows="20" readonly>${esc(ch.script)}</textarea>
+        <p class="char-count">글자 수: ${ch.script ? ch.script.length.toLocaleString() : 0}자</p>
       </div>`;
     tabPanels.appendChild(panel);
   });
@@ -179,9 +172,10 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
 // ── 전체 이미지 프롬프트 복사 ─────────────────────────────────
 function copyAllImgPrompts(btn) {
   if (!jobData || !jobData.chapters) return;
-  const text = jobData.chapters.map(ch =>
-    `[챕터 ${ch.chapter_num}]\n${ch.image_prompt || ''}`
-  ).join('\n\n');
+  const text = jobData.chapters.map(ch => {
+    const scenes = (ch.scene_prompts || []).map((p, i) => `[장면${i+1}]\n${p}`).join('\n\n');
+    return `=== 챕터 ${ch.chapter_num} ===\n\n${scenes}`;
+  }).join('\n\n');
   navigator.clipboard.writeText(text).then(() => {
     btn.textContent = '복사됨!';
     setTimeout(() => { btn.textContent = '전체 복사'; }, 1800);
