@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>인생이야기 자동화</title>
+  <title>사진 자동 생성</title>
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
@@ -12,30 +12,27 @@
   <header class="site-header">
     <div class="logo-area">
       <span class="logo-icon">&#9654;</span>
-      <span class="logo-text">인생이야기 자동화</span>
+      <span class="logo-text">사진 자동 생성</span>
     </div>
-    <p class="logo-sub">참고 대본 → 제목 · 설명 · 썸네일 · 대본 · 이미지 프롬프트 자동 생성</p>
+    <p class="logo-sub">이미지 프롬프트 붙여넣기 → Gemini 자동 생성 → 사진1.png, 사진2.png...</p>
   </header>
 
   <main class="container">
 
     <!-- ── 입력 카드 ── -->
     <div class="card" id="inputCard">
-
       <div class="field" style="margin-bottom:0;">
-        <label for="reference_script">
-          참고 대본 <span class="hint">(선택 — 붙여넣으면 등장인물·문장을 바꿔 새로 창작합니다)</span>
+        <label for="prompts">
+          이미지 프롬프트 <span class="hint">(한 줄에 하나씩 — 순서대로 사진1, 사진2... 저장됩니다)</span>
         </label>
-        <textarea id="reference_script" class="script-input"
-          placeholder="여기에 참고 대본을 붙여넣으세요.&#10;없으면 제목만으로도 생성됩니다."></textarea>
+        <textarea id="prompts" class="script-input"
+          placeholder="A cinematic 16:9 photorealistic scene of...&#10;A cinematic 16:9 photorealistic scene of...&#10;..."></textarea>
         <p id="charCountInput" class="char-count"></p>
       </div>
-
       <button id="genBtn" class="btn-primary" onclick="startGeneration()">
-        &#10024; 전체 자동 생성 시작
+        &#10024; 이미지 자동 생성 시작
       </button>
-
-    </div><!-- #inputCard -->
+    </div>
 
     <!-- ── 진행 상황 ── -->
     <div id="progressSection" class="hidden" style="margin-top:2rem;">
@@ -45,7 +42,7 @@
           <div id="progressBar" class="progress-bar" style="width:0%"></div>
         </div>
         <div class="progress-info">
-          <span id="progressLabel">0 / 14</span>
+          <span id="progressLabel">0 / 0</span>
           <span id="timeInfo" class="time-info"></span>
         </div>
       </div>
@@ -53,113 +50,18 @@
 
     <!-- ── 결과 영역 ── -->
     <div id="resultSection" class="hidden" style="margin-top:2rem;">
-
-      <!-- 제목 -->
-      <div class="result-block hidden" id="blockTitles">
+      <div class="result-block" id="blockImages">
         <div class="result-block-header">
-          <span class="result-block-icon">&#128196;</span> 제목 추천 5개
+          <span class="result-block-icon">&#128247;</span> 생성된 이미지
         </div>
-        <textarea id="outTitles" class="result-textarea" rows="7" readonly></textarea>
-        <button class="btn-copy" onclick="copyField('outTitles', this)">복사</button>
+        <div id="imageList"></div>
       </div>
-
-      <!-- 유튜브 설명 -->
-      <div class="result-block hidden" id="blockMeta">
-        <div class="result-block-header">
-          <span class="result-block-icon">&#128227;</span> 유튜브 설명란 &amp; 해시태그
-        </div>
-        <textarea id="outMeta" class="result-textarea" rows="6" readonly></textarea>
-        <button class="btn-copy" onclick="copyField('outMeta', this)">복사</button>
-      </div>
-
-      <!-- 등장인물 + 썸네일 -->
-      <div class="result-block hidden" id="blockChars">
-        <div class="result-block-header">
-          <span class="result-block-icon">&#128100;</span> 등장인물 설정 &amp; 썸네일
-        </div>
-        <div class="grid-2" style="align-items:start;gap:1.5rem;">
-          <div>
-            <p class="result-label">등장인물 설정</p>
-            <textarea id="outChars" class="result-textarea" rows="8" readonly></textarea>
-            <button class="btn-copy" onclick="copyField('outChars', this)">복사</button>
-
-            <p class="result-label" style="margin-top:1.2rem;">썸네일 프롬프트</p>
-            <textarea id="outThumbPrompt" class="result-textarea" rows="6" readonly></textarea>
-            <button class="btn-copy" onclick="copyField('outThumbPrompt', this)">복사</button>
-          </div>
-          <div>
-            <p class="result-label">썸네일 이미지</p>
-            <div id="thumbBox" class="thumb-placeholder">
-              <span>생성 중...</span>
-            </div>
-            <a id="thumbDl" class="btn-img-dl hidden" download="thumbnail.png">&#128229; 썸네일 다운로드</a>
-          </div>
-        </div>
-      </div>
-
-      <!-- 인물 베이스 프롬프트 -->
-      <div class="result-block hidden" id="blockBase">
-        <div class="result-block-header">
-          <span class="result-block-icon">&#127775;</span> 인물 베이스 프롬프트 (Flow용)
-        </div>
-        <textarea id="outBase" class="result-textarea" rows="7" readonly></textarea>
-        <button class="btn-copy" onclick="copyField('outBase', this)">복사</button>
-      </div>
-
-      <!-- 인트로 영상 프롬프트 -->
-      <div class="result-block hidden" id="blockIntroPrompt">
-        <div class="result-block-header">
-          <span class="result-block-icon">&#127916;</span> 인트로 후킹 영상 프롬프트 (Flow용)
-        </div>
-        <textarea id="outIntroPrompt" class="result-textarea" rows="8" readonly></textarea>
-        <button class="btn-copy" onclick="copyField('outIntroPrompt', this)">복사</button>
-      </div>
-
-      <!-- 챕터별 이미지 프롬프트 -->
-      <div class="result-block hidden" id="blockImgPrompts">
-        <div class="result-block-header" style="justify-content:space-between;">
-          <span><span class="result-block-icon">&#128247;</span> 챕터별 이미지 프롬프트 (Flow용)</span>
-          <button class="btn-copy" style="margin-top:0;" onclick="copyAllImgPrompts(this)">전체 복사</button>
-        </div>
-        <div id="imgPromptList"></div>
-      </div>
-
-      <!-- 삽입 위치 안내 -->
-      <div class="result-block hidden" id="blockInsertGuide">
-        <div class="result-block-header" style="justify-content:space-between;">
-          <span><span class="result-block-icon">&#128204;</span> 사진 삽입 위치 안내 (Vrew Ctrl+F 검색용)</span>
-          <button class="btn-copy" style="margin-top:0;" onclick="copyField('outInsertGuide', this)">복사</button>
-        </div>
-        <p class="hint" style="margin-bottom:0.8rem;">각 사진 번호 옆 문장을 Vrew에서 Ctrl+F로 검색하면 삽입 위치를 바로 찾을 수 있어요.</p>
-        <textarea id="outInsertGuide" class="result-textarea" rows="14" readonly></textarea>
-      </div>
-
-      <!-- 대본 다운로드 -->
-      <div class="result-block hidden" id="blockDownload">
-        <div class="result-block-header">
-          <span class="result-block-icon">&#128229;</span> 전체 대본
-        </div>
-        <p class="hint" style="margin-bottom:1rem;">서론 + 챕터 1~10 + 아웃트로 합본 (Vrew용 .txt)</p>
-        <button id="downloadBtn" class="btn-primary" style="width:auto;padding:0.8rem 2rem;">
-          전체 대본 다운로드
-        </button>
-      </div>
-
-      <!-- 챕터별 탭 -->
-      <div class="result-block hidden" id="blockChapterTabs">
-        <div class="result-block-header">
-          <span class="result-block-icon">&#128221;</span> 챕터별 대본 &amp; 이미지
-        </div>
-        <div id="tabBar" class="tab-bar"></div>
-        <div id="tabPanels"></div>
-      </div>
-
-    </div><!-- #resultSection -->
+    </div>
 
   </main>
 
   <footer class="site-footer">
-    <p>Powered by Claude &amp; Gemini &nbsp;|&nbsp; 인생이야기 자동화</p>
+    <p>Powered by Gemini Imagen &nbsp;|&nbsp; 인생이야기 자동화</p>
   </footer>
 
   <script src="/static/js/script.js"></script>

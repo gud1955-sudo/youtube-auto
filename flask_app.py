@@ -3,15 +3,7 @@ import threading
 import uuid
 from flask import Flask, render_template, request, jsonify, send_from_directory
 
-from script_generator import (
-    generate_setup,
-    generate_intro_script,
-    generate_chapter_script,
-    generate_outro_script,
-    generate_scene_prompts,
-    generate_insertion_guide,
-)
-from gemini_image import generate_image, generate_thumbnail
+from gemini_image import generate_image
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
@@ -19,88 +11,33 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 jobs = {}
 
-TOTAL_STEPS = 14  # setup + thumbnail + intro + 10chapters + outro
 
-
-def run_generation(job_id, reference_script):
+def run_generation(job_id, prompts):
     try:
-        jobs[job_id]["total"] = TOTAL_STEPS
-        photo_num = 1  # 전체 사진 일련번호
+        total = len(prompts)
+        jobs[job_id]["total"] = total
+        images = []
 
-        # 1. 메타데이터 전체 생성
-        jobs[job_id]["current_task"] = "제목 · 설명 · 등장인물 · 썸네일 · 인트로 영상 프롬프트 생성 중..."
-        setup = generate_setup(reference_script)
-        jobs[job_id]["setup"] = setup
-        jobs[job_id]["progress"] = 1
-
-        # 2. 썸네일 이미지 생성
-        jobs[job_id]["current_task"] = "썸네일 이미지 생성 중 (Gemini)..."
-        try:
-            generate_thumbnail(setup["thumbnail_prompt"])
-            jobs[job_id]["thumbnail_url"] = "/images/thumbnail.png"
-        except Exception as e:
-            jobs[job_id]["thumbnail_url"] = None
-            jobs[job_id]["thumbnail_error"] = str(e)
-        jobs[job_id]["progress"] = 2
-
-        # 3. 서론
-        jobs[job_id]["current_task"] = "서론 작성 중..."
-        intro = generate_intro_script(reference_script, setup["character_table"])
-        jobs[job_id]["intro"] = intro
-        jobs[job_id]["progress"] = 3
-
-        # 4~13. 챕터 1~10
-        chapters = []
-        insertion_guide_lines = []
-
-        for i in range(1, 11):
-            jobs[job_id]["current_task"] = f"챕터 {i} 대본 작성 중... ({i}/10)"
-            script = generate_chapter_script(i, 10, reference_script, setup["character_table"])
-
-            jobs[job_id]["current_task"] = f"챕터 {i} 장면 프롬프트 생성 중..."
-            scene_data = generate_scene_prompts(
-                i, script, setup["character_base_prompts"], photo_start_num=photo_num
-            )
-
-            jobs[job_id]["current_task"] = f"챕터 {i} 삽입 위치 안내 생성 중..."
+        for idx, prompt in enumerate(prompts):
+            photo_num = idx + 1
+            jobs[job_id]["current_task"] = f"사진 {photo_num} / {total} 생성 중..."
             try:
-                guide_lines = generate_insertion_guide(i, script, scene_data)
-                insertion_guide_lines.extend(guide_lines)
-            except Exception:
-                pass
+                generate_image(prompt, 0, photo_num)
+                img_url = f"/images/사진{photo_num}.png"
+            except Exception as e:
+                img_url = None
+                jobs[job_id][f"error_{photo_num}"] = str(e)
 
-            scenes = []
-            for sd in scene_data:
-                jobs[job_id]["current_task"] = f"사진 {sd['photo_num']} 이미지 생성 중 (Gemini)..."
-                try:
-                    generate_image(sd["prompt"], i, sd["photo_num"])
-                    img_url = f"/images/사진{sd['photo_num']}.png"
-                except Exception:
-                    img_url = None
-                scenes.append({
-                    "photo_num": sd["photo_num"],
-                    "prompt":    sd["prompt"],
-                    "image_url": img_url,
-                })
-                photo_num += 1
-
-            chapters.append({
-                "chapter_num": i,
-                "script":      script,
-                "scenes":      scenes,
+            images.append({
+                "photo_num": photo_num,
+                "prompt":    prompt,
+                "image_url": img_url,
             })
-            jobs[job_id]["chapters"] = chapters
-            jobs[job_id]["insertion_guide"] = insertion_guide_lines
-            jobs[job_id]["progress"] = 3 + i
+            jobs[job_id]["images"] = images
+            jobs[job_id]["progress"] = photo_num
 
-        # 14. 아웃트로
-        jobs[job_id]["current_task"] = "아웃트로 작성 중..."
-        outro = generate_outro_script(reference_script)
-        jobs[job_id]["outro"] = outro
-        jobs[job_id]["total_photos"] = photo_num - 1
-        jobs[job_id]["progress"] = TOTAL_STEPS
         jobs[job_id]["status"] = "done"
-        jobs[job_id]["current_task"] = "완료!"
+        jobs[job_id]["current_task"] = f"완료! ({total}장 생성됨)"
 
     except Exception as e:
         jobs[job_id]["error"] = str(e)
@@ -109,29 +46,26 @@ def run_generation(job_id, reference_script):
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    reference_script = request.form.get("reference_script", "").strip()
+    raw = request.form.get("prompts", "").strip()
+    if not raw:
+        return jsonify({"error": "프롬프트를 입력해주세요."}), 400
 
-    if not reference_script:
-        return jsonify({"error": "참고 대본을 입력해주세요."}), 400
+    prompts = [line.strip() for line in raw.splitlines() if line.strip()]
+    if not prompts:
+        return jsonify({"error": "프롬프트를 입력해주세요."}), 400
 
     job_id = str(uuid.uuid4())
     jobs[job_id] = {
-        "status":          "running",
-        "progress":        0,
-        "total":           TOTAL_STEPS,
-        "current_task":    "시작 중...",
-        "setup":           None,
-        "thumbnail_url":   None,
-        "intro":           "",
-        "chapters":        [],
-        "outro":           "",
-        "insertion_guide": [],
-        "total_photos":    0,
+        "status":       "running",
+        "progress":     0,
+        "total":        len(prompts),
+        "current_task": "시작 중...",
+        "images":       [],
     }
 
     threading.Thread(
         target=run_generation,
-        args=(job_id, reference_script),
+        args=(job_id, prompts),
         daemon=True,
     ).start()
 

@@ -3,27 +3,27 @@ let startTime = null;
 let timerInterval = null;
 
 // ── 글자수 카운터 ──────────────────────────────────────────────
-document.getElementById('reference_script').addEventListener('input', function () {
-  const len = this.value.length;
-  document.getElementById('charCountInput').textContent = len > 0 ? `${len.toLocaleString()}자` : '';
+document.getElementById('prompts').addEventListener('input', function () {
+  const lines = this.value.split('\n').filter(l => l.trim()).length;
+  document.getElementById('charCountInput').textContent = lines > 0 ? `${lines}개 프롬프트` : '';
 });
 
 // ── 생성 시작 ─────────────────────────────────────────────────
 async function startGeneration() {
-  const script = document.getElementById('reference_script').value.trim();
-
-  if (!script) { alert('참고 대본을 입력해주세요.'); return; }
+  const prompts = document.getElementById('prompts').value.trim();
+  if (!prompts) { alert('프롬프트를 입력해주세요.'); return; }
 
   document.getElementById('genBtn').disabled = true;
   document.getElementById('progressSection').classList.remove('hidden');
   document.getElementById('resultSection').classList.remove('hidden');
-  resetResults();
+  document.getElementById('imageList').innerHTML = '';
+  document.getElementById('progressBar').style.background = '';
   startTime = Date.now();
   startTimer();
-  setProgress(0, 14, '서버에 요청 중...');
+  setProgress(0, 0, '서버에 요청 중...');
 
   const fd = new FormData();
-  fd.append('reference_script', script);
+  fd.append('prompts', prompts);
 
   try {
     const res  = await fetch('/generate', { method: 'POST', body: fd });
@@ -43,8 +43,8 @@ function pollStatus(jobId) {
       const data = await res.json();
       jobData = data;
 
-      setProgress(data.progress || 0, data.total || 14, data.current_task || '처리 중...');
-      renderPartial(data);
+      setProgress(data.progress || 0, data.total || 0, data.current_task || '처리 중...');
+      renderImages(data.images || []);
 
       if (data.status === 'error') {
         clearInterval(interval);
@@ -56,7 +56,6 @@ function pollStatus(jobId) {
       if (data.status === 'done') {
         clearInterval(interval);
         stopTimer();
-        renderFinal(data);
         document.getElementById('genBtn').disabled = false;
         document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
       }
@@ -64,144 +63,33 @@ function pollStatus(jobId) {
   }, 1500);
 }
 
-// ── 부분 렌더 (실시간) ────────────────────────────────────────
-function renderPartial(data) {
-  if (data.setup) {
-    showBlock('blockTitles');
-    showBlock('blockMeta');
-    showBlock('blockChars');
-    showBlock('blockBase');
-    showBlock('blockIntroPrompt');
-    document.getElementById('outTitles').value      = data.setup.titles || '';
-    document.getElementById('outMeta').value        = data.setup.youtube_meta || '';
-    document.getElementById('outChars').value       = data.setup.character_table || '';
-    document.getElementById('outThumbPrompt').value = data.setup.thumbnail_prompt || '';
-    document.getElementById('outBase').value        = data.setup.character_base_prompts || '';
-    document.getElementById('outIntroPrompt').value = data.setup.intro_video_prompts || '';
-  }
-
-  if (data.thumbnail_url) {
-    document.getElementById('thumbBox').innerHTML =
-      `<img src="${data.thumbnail_url}?t=${Date.now()}" alt="썸네일" style="width:100%;border-radius:var(--radius);" />`;
-    const dl = document.getElementById('thumbDl');
-    dl.href = data.thumbnail_url;
-    dl.classList.remove('hidden');
-  }
-
-  if (data.chapters && data.chapters.length > 0) {
-    showBlock('blockImgPrompts');
-    showBlock('blockChapterTabs');
-    renderChapters(data.chapters);
-  }
-
-  if (data.insertion_guide && data.insertion_guide.length > 0) {
-    showBlock('blockInsertGuide');
-    document.getElementById('outInsertGuide').value = data.insertion_guide.join('\n');
-  }
-}
-
-// ── 최종 렌더 ─────────────────────────────────────────────────
-function renderFinal(data) {
-  renderPartial(data);
-  showBlock('blockDownload');
-}
-
-// ── 챕터 렌더 ─────────────────────────────────────────────────
-function renderChapters(chapters) {
-  const imgList  = document.getElementById('imgPromptList');
-  const tabBar   = document.getElementById('tabBar');
-  const tabPanels = document.getElementById('tabPanels');
-
-  imgList.innerHTML  = '';
-  tabBar.innerHTML   = '';
-  tabPanels.innerHTML = '';
-
-  chapters.forEach((ch, idx) => {
-    const scenes = ch.scenes || [];
-
-    // 장면별 이미지 프롬프트 목록
-    const item = document.createElement('div');
-    item.className = 'img-prompt-item';
-    const scenesHtml = scenes.map((s, si) => {
-      const imgHtml = s.image_url
-        ? `<img src="${s.image_url}?t=${Date.now()}" class="scene-img" alt="장면${si+1}" />
-           <a class="btn-img-dl" href="${s.image_url}" download="사진${s.photo_num}.png">&#128229; 다운로드</a>`
-        : `<div class="no-image" style="aspect-ratio:16/9;">이미지 생성 실패</div>`;
-      return `
-        <div class="scene-row">
-          <span class="scene-badge">장면 ${si + 1}</span>
-          <div class="scene-content">
-            <div class="scene-img-wrap">${imgHtml}</div>
-            <textarea class="result-textarea img-prompt-ta" rows="4" readonly>${esc(s.prompt)}</textarea>
-            <button class="btn-copy scene-copy" onclick="copyField(this.previousElementSibling, this)">복사</button>
-          </div>
-        </div>`;
-    }).join('');
-    item.innerHTML = `<div class="img-prompt-label">챕터 ${ch.chapter_num} (${scenes.length}장면)</div>${scenesHtml}`;
-    imgList.appendChild(item);
-
-    // 탭 버튼
-    const btn = document.createElement('button');
-    btn.className = 'tab-btn' + (idx === 0 ? ' active' : '');
-    btn.textContent = `챕터 ${ch.chapter_num}`;
-    btn.onclick = () => switchTab(idx);
-    tabBar.appendChild(btn);
-
-    // 탭 패널 - 대본만
-    const panel = document.createElement('div');
-    panel.className = 'tab-panel' + (idx === 0 ? ' active' : '');
-    panel.innerHTML = `
-      <p class="result-label">&#128221; 대본</p>
-      <textarea class="result-textarea" rows="22" readonly>${esc(ch.script)}</textarea>
-      <p class="char-count">글자 수: ${ch.script ? ch.script.length.toLocaleString() : 0}자</p>`;
-    tabPanels.appendChild(panel);
-  });
-}
-
-function switchTab(idx) {
-  document.querySelectorAll('.tab-btn').forEach((b, i)   => b.classList.toggle('active', i === idx));
-  document.querySelectorAll('.tab-panel').forEach((p, i) => p.classList.toggle('active', i === idx));
-}
-
-// ── 전체 대본 다운로드 ────────────────────────────────────────
-document.getElementById('downloadBtn').addEventListener('click', () => {
-  if (!jobData) return;
-  let text = '';
-
-  if (jobData.intro) text += jobData.intro + '\n\n';
-  (jobData.chapters || []).forEach(ch => {
-    text += (ch.script || '') + '\n\n';
-  });
-  if (jobData.outro) text += jobData.outro + '\n';
-
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  const now = new Date();
-  a.download = `대본_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
-});
-
-// ── 전체 이미지 프롬프트 복사 ─────────────────────────────────
-function copyAllImgPrompts(btn) {
-  if (!jobData || !jobData.chapters) return;
-  const text = jobData.chapters.map(ch => {
-    const scenes = (ch.scenes || []).map((s, i) => `[장면${i+1}]\n${s.prompt || ''}`).join('\n\n');
-    return `=== 챕터 ${ch.chapter_num} ===\n\n${scenes}`;
-  }).join('\n\n');
-  navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = '복사됨!';
-    setTimeout(() => { btn.textContent = '전체 복사'; }, 1800);
+// ── 이미지 렌더 ───────────────────────────────────────────────
+function renderImages(images) {
+  const list = document.getElementById('imageList');
+  list.innerHTML = '';
+  images.forEach(img => {
+    const div = document.createElement('div');
+    div.className = 'scene-row';
+    const imgHtml = img.image_url
+      ? `<img src="${img.image_url}?t=${Date.now()}" class="scene-img" alt="사진${img.photo_num}" />
+         <a class="btn-img-dl" href="${img.image_url}" download="사진${img.photo_num}.png">&#128229; 다운로드</a>`
+      : `<div class="no-image" style="aspect-ratio:16/9;">생성 실패</div>`;
+    div.innerHTML = `
+      <span class="scene-badge">사진 ${img.photo_num}</span>
+      <div class="scene-content">
+        <div class="scene-img-wrap">${imgHtml}</div>
+        <textarea class="result-textarea img-prompt-ta" rows="3" readonly>${esc(img.prompt)}</textarea>
+        <button class="btn-copy scene-copy" onclick="copyField(this.previousElementSibling, this)">복사</button>
+      </div>`;
+    list.appendChild(div);
   });
 }
 
 // ── 유틸 ─────────────────────────────────────────────────────
 function setProgress(done, total, taskText) {
-  document.getElementById('taskText').textContent    = taskText;
-  document.getElementById('progressLabel').textContent = `${done} / ${total} 단계`;
-  document.getElementById('progressBar').style.width  = `${total > 0 ? (done / total) * 100 : 0}%`;
+  document.getElementById('taskText').textContent = taskText;
+  document.getElementById('progressLabel').textContent = total > 0 ? `${done} / ${total} 장` : '';
+  document.getElementById('progressBar').style.width = total > 0 ? `${(done / total) * 100}%` : '0%';
   updateTimeInfo(done, total);
 }
 
@@ -210,10 +98,9 @@ function updateTimeInfo(done, total) {
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
   let text = `경과 ${fmtTime(elapsed)}`;
   if (done > 0 && done < total) {
-    const estimated = Math.floor(elapsed / done * total);
-    const remaining = Math.max(0, estimated - elapsed);
-    text += `  |  예상 남은 시간 ${fmtTime(remaining)}`;
-  } else if (done >= total) {
+    const remaining = Math.max(0, Math.floor(elapsed / done * (total - done)));
+    text += `  |  남은 시간 약 ${fmtTime(remaining)}`;
+  } else if (done > 0 && done >= total) {
     text += `  |  완료`;
   }
   document.getElementById('timeInfo').textContent = text;
@@ -239,24 +126,8 @@ function fmtTime(sec) {
 }
 
 function showError(msg) {
-  document.getElementById('taskText').textContent  = '오류: ' + msg;
+  document.getElementById('taskText').textContent = '오류: ' + msg;
   document.getElementById('progressBar').style.background = 'var(--red)';
-}
-
-function showBlock(id) {
-  document.getElementById(id).classList.remove('hidden');
-}
-
-function resetResults() {
-  ['blockTitles','blockMeta','blockChars','blockBase','blockIntroPrompt',
-   'blockImgPrompts','blockInsertGuide','blockDownload','blockChapterTabs'].forEach(id => {
-    document.getElementById(id).classList.add('hidden');
-  });
-  document.getElementById('imgPromptList').innerHTML = '';
-  document.getElementById('tabBar').innerHTML = '';
-  document.getElementById('tabPanels').innerHTML = '';
-  document.getElementById('thumbBox').innerHTML = '<span>생성 중...</span>';
-  document.getElementById('thumbDl').classList.add('hidden');
 }
 
 function copyField(elOrId, btn) {
@@ -271,5 +142,3 @@ function esc(str) {
   if (!str) return '';
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-
-function pad(n) { return String(n).padStart(2, '0'); }
