@@ -90,8 +90,8 @@
   <section class="card" id="sec-images">
     <div class="card-head"><span class="num">4</span><h2>사진 확인 · 직접 넣기</h2><span class="state" id="img-state"></span></div>
     <label id="drop" class="drop">
-      <input type="file" id="img-input" accept="image/*" multiple hidden>
-      <strong>사진을 여기로 한꺼번에 끌어다 놓으세요</strong>
+      <input type="file" id="img-input" accept="image/*,.zip" multiple hidden>
+      <strong>사진(또는 압축 파일 zip)을 여기로 한꺼번에 끌어다 놓으세요</strong>
       <span>또는 클릭해서 선택 · 파일 이름이 001, 002…면 그 번호대로, 아니면 다운로드한 순서대로 들어갑니다</span>
     </label>
     <div class="row tools"><button class="btn ghost" id="img-clear">사진 모두 빼기</button></div>
@@ -133,7 +133,8 @@
 <div id="toast" class="toast" hidden></div>
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js"></script>
-<script src="app.js?v=8"></script>
+<script src="lib/jszip.min.js"></script>
+<script src="app.js?v=9"></script>
 <script src="gen.js?v=1"></script>
 </body>
 </html>

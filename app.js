@@ -688,8 +688,29 @@ async function previewVoice(c, btn) {
 }
 
 // ───────────────────────── 화면: 사진 ─────────────────────────
-function addImages(files) {
-  const imgs = [...files].filter((f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(f.name));
+// 압축 파일(zip)로 받은 사진도 풀어서 넣기 (Flow 컬렉션 일괄 다운로드 대비)
+async function unzipImages(files) {
+  const out = [];
+  for (const f of files) {
+    if (!/\.zip$/i.test(f.name) && f.type !== "application/zip" && f.type !== "application/x-zip-compressed") { out.push(f); continue; }
+    if (typeof JSZip === "undefined") { toast("압축 파일을 열 수 없습니다. 압축을 푼 뒤 사진을 넣어주세요", 6000); continue; }
+    toast(`${f.name} 압축 푸는 중…`, 8000);
+    const zip = await JSZip.loadAsync(f);
+    const entries = Object.values(zip.files).filter((z) => !z.dir && /\.(png|jpe?g|webp)$/i.test(z.name) && !/__MACOSX/.test(z.name));
+    entries.sort((a, b) => (a.date - b.date) || a.name.localeCompare(b.name, "ko", { numeric: true }));
+    for (const z of entries) {
+      const blob = await z.async("blob");
+      const base = z.name.split("/").pop();
+      const type = /\.png$/i.test(base) ? "image/png" : /\.webp$/i.test(base) ? "image/webp" : "image/jpeg";
+      out.push(new File([blob], base, { type, lastModified: z.date ? z.date.getTime() : Date.now() }));
+    }
+  }
+  return out;
+}
+
+async function addImages(fileList) {
+  const files = await unzipImages([...fileList]);
+  const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(f.name));
   if (!imgs.length) return toast("사진 파일이 아닙니다");
   // 파일 이름이 숫자로 시작하면(001.png, 12_장면.jpg) 그 번호의 장면에 넣고,
   // 아니면(Flow 다운로드 이름 등) 다운로드한 순서대로 장면에 넣는다
