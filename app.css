@@ -110,3 +110,21 @@ textarea { width: 100%; min-height: 260px; resize: vertical; font-family: "Malgu
 body.mode-typecast .opt-only { display: none; }
 @media (max-width: 720px) { .vrew-files { grid-template-columns: 1fr; } }
 [hidden] { display: none !important; }
+#gem-key { flex: 1; min-width: 240px; }
+textarea.short { min-height: 140px; margin-top: 4px; }
+h3.sub { font-size: 16px; margin: 18px 0 8px; }
+h3.sub .hint { font-weight: 400; margin-left: 4px; }
+.chars { display: grid; gap: 10px; }
+.char-row { display: grid; grid-template-columns: 110px 1fr; gap: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.ref { width: 110px; height: 110px; border-radius: 10px; background: #ece7df center/cover no-repeat; display: grid; place-items: center; font-size: 12px; color: var(--muted); text-align: center; }
+.char-info { display: grid; gap: 6px; align-content: start; }
+.char-info .hint { margin: 0; }
+.cands { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cands .hint { flex-basis: 100%; }
+.cand { padding: 0; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer; background: none; }
+.cand:hover { border-color: var(--accent); }
+.cand img { width: 120px; height: 120px; object-fit: cover; display: block; }
+.tile { position: relative; }
+.tile .regen { position: absolute; top: 6px; right: 6px; font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 6px; border: 0; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; }
+.tile.thumb .row { margin-top: 6px; gap: 4px; }
+.tile.thumb .btn { padding: 4px 10px; font-size: 13px; }

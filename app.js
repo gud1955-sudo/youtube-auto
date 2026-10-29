@@ -724,9 +724,13 @@ function renderGrid() {
   state.scenes.forEach((sc, i) => {
     const f = imageFor(sc.num, i);
     if (!f) miss++;
-    const ph = el("div", { class: "ph" }, f ? "" : "사진 없음");
+    const why = state.gen?.failed?.get("S" + sc.num);
+    const ph = el("div", { class: "ph" }, f ? "" : why ? "생성 실패" : "사진 없음");
     if (f) ph.style.backgroundImage = `url("${thumbURL(f)}")`;
-    g.append(el("div", { class: "tile" + (f ? "" : " miss") }, ph,
+    if (why) ph.title = why;
+    const canRegen = state.gen?.scenes?.some((x) => x.num === sc.num);
+    const regen = canRegen ? el("button", { class: "regen", title: "이 장면 사진 다시 만들기", onclick: (e) => { e.stopPropagation(); e.target.disabled = true; e.target.textContent = "…"; regenScene(sc.num); } }, "다시") : null;
+    g.append(el("div", { class: "tile" + (f ? "" : " miss") }, ph, regen,
       el("div", { class: "cap" }, el("b", {}, pad3(sc.num)), sc.chapter ? `· ${sc.chapter}` : "", el("span", {}, sc.lines[0].text))));
   });
   if (miss) { st.textContent = `${miss}장 비어 있음 (앞 사진을 이어서 씀)`; st.className = "state warn"; }

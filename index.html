@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>인생이야기 영상 제작기</title>
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=7">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo">인</span><div><h1>인생이야기 영상 제작기</h1><p>브루 음성·자막 넣기 → 사진 넣기 → 영상 만들기</p></div><div class="topright"><span id="ext-state" class="ext"></span><span id="version" class="ver"></span></div></div>
+  <div class="brand"><span class="logo">인</span><div><h1>인생이야기 영상 제작기</h1><p>브루 음성·자막 넣기 → 사진 만들기 → 영상 만들기</p></div><div class="topright"><span id="ext-state" class="ext"></span><span id="version" class="ver"></span></div></div>
 </header>
 
 <main>
@@ -58,9 +58,37 @@
     <div id="script-summary" class="summary"></div>
   </section>
 
+  <!-- 사진 만들기 -->
+  <section class="card" id="sec-gen">
+    <div class="card-head"><span class="num">3</span><h2>사진 만들기 <small>(Gemini 자동 생성)</small></h2><span class="state" id="gen-state"></span></div>
+    <div class="row">
+      <input type="password" id="gem-key" placeholder="Gemini API 키 (aistudio.google.com → Get API key)" autocomplete="off">
+      <button id="gem-key-save" class="btn">저장</button><span class="state" id="gem-key-state"></span>
+    </div>
+    <div class="row" style="margin-top:8px"><label>모델 <select id="gem-model"></select></label></div>
+    <div class="row tools" style="margin-top:12px">
+      <label class="btn ghost">프롬프트 파일 열기<input type="file" id="gen-file" accept=".txt,.md,text/plain" hidden></label>
+    </div>
+    <textarea id="gen-prompts" class="short" spellcheck="false" placeholder="코워크가 준 '이미지 프롬프트'를 여기에 붙여넣으세요 ([인물] / [인물사진] / [썸네일 A] / [장면 002] …)"></textarea>
+    <div id="gen-summary" class="summary"></div>
+    <h3 class="sub">① 인물 참고 사진 <span class="hint">— 인물마다 얼굴 사진 1장을 정해두면 모든 장면에서 같은 얼굴로 나옵니다</span></h3>
+    <div id="gen-chars" class="chars"></div>
+    <h3 class="sub">② 썸네일 <span class="hint">— 썸네일 A 는 장면 001 사진으로도 쓰입니다</span></h3>
+    <div id="gen-thumbs" class="grid"></div>
+    <h3 class="sub">③ 장면 사진 전부 만들기</h3>
+    <div class="row">
+      <button id="gen-all" class="btn big">사진 전부 만들기</button>
+      <button id="gen-stop" class="btn ghost" hidden>중지</button>
+      <button id="gen-retry" class="btn ghost" hidden>실패한 것만 다시</button>
+      <button id="gen-zip" class="btn ghost">만든 사진 폴더에 저장</button>
+    </div>
+    <div id="gen-failed" class="msgs"></div>
+    <p class="hint">만든 사진은 아래 사진 칸에 장면 번호대로 바로 들어갑니다. 마음에 안 드는 장은 아래 칸의 [다시] 를 누르세요. 한 번 만든 사진은 브라우저에 저장되어, 새로고침해도 다시 돈이 들지 않습니다.</p>
+  </section>
+
   <!-- 4. 사진 -->
   <section class="card" id="sec-images">
-    <div class="card-head"><span class="num">4</span><h2>사진 넣기</h2><span class="state" id="img-state"></span></div>
+    <div class="card-head"><span class="num">4</span><h2>사진 확인 · 직접 넣기</h2><span class="state" id="img-state"></span></div>
     <label id="drop" class="drop">
       <input type="file" id="img-input" accept="image/*" multiple hidden>
       <strong>사진을 여기로 한꺼번에 끌어다 놓으세요</strong>
@@ -105,6 +133,7 @@
 <div id="toast" class="toast" hidden></div>
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
+<script src="gen.js?v=1"></script>
 </body>
 </html>
