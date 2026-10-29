@@ -468,10 +468,25 @@ function renderCast() {
     fa.onchange = () => { c.fa = fa.value; fill(); saveCast(); };
     sel.onchange = () => { c.voice_id = sel.value; row.classList.toggle("missing", !c.voice_id); saveCast(); updateCastState(); };
     const play = el("button", { class: "btn play", title: "미리 듣기", onclick: () => previewVoice(c, play) }, "▶ 듣기");
-    const speed = el("select", { title: "속도" }, ...[0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15].map((s) => el("option", { value: s }, `속도 ${s}`)));
+    const SPEEDS = [[0.8, "아주 느리게"], [0.85, "느리게"], [0.9, "조금 느리게"], [0.95, "살짝 느리게"], [1.0, "보통"], [1.1, "조금 빠르게"], [1.2, "빠르게"], [1.3, "아주 빠르게"]];
+    if (!SPEEDS.some(([v]) => v === +c.speed)) c.speed = 1.0;
+    const speed = el("select", { title: "읽는 속도" }, ...SPEEDS.map(([v, t]) => el("option", { value: v }, `속도: ${t}`)));
     speed.value = String(c.speed); speed.onchange = () => { c.speed = +speed.value; saveCast(); };
-    const emo = el("select", { title: "감정 표시가 없는 줄의 기본 감정" }, el("option", { value: "smart" }, "감정 자동"), el("option", { value: "normal" }, "감정 보통"), el("option", { value: "tonedown" }, "차분하게"));
-    emo.value = c.emotion; emo.onchange = () => { c.emotion = emo.value; saveCast(); };
+    const emo = el("select", { title: "감정 표시가 없는 줄에 쓰는 기본 감정" });
+    const fillEmo = () => {
+      const isNew = modelFor(c.voice_id) === "ssfm-v30";
+      const opts = isNew
+        ? [["smart", "감정: 자동 (문맥 따라)"], ["normal", "감정: 보통"], ["tonedown", "감정: 차분하게"], ["toneup", "감정: 밝게"], ["sad", "감정: 슬프게"], ["happy", "감정: 기쁘게"]]
+        : [["normal", "감정: 보통"], ["happy", "감정: 기쁘게"], ["sad", "감정: 슬프게"], ["angry", "감정: 화나게"]];
+      emo.innerHTML = ""; for (const [v, t] of opts) emo.append(el("option", { value: v }, t));
+      if (!opts.some(([v]) => v === c.emotion)) c.emotion = opts.some(([v]) => v === "normal") && name === CFG.narrator ? "normal" : opts[0][0];
+      emo.value = c.emotion;
+      emo.title = isNew ? "감정 표시가 없는 줄에 쓰는 기본 감정" : "구형 모델 목소리라 감정은 보통·기쁘게·슬프게·화나게만 됩니다";
+    };
+    fillEmo();
+    emo.onchange = () => { c.emotion = emo.value; saveCast(); };
+    const prevOnChange = sel.onchange;
+    sel.onchange = () => { prevOnChange?.(); fillEmo(); saveCast(); };
     row.append(
       el("div", { class: "cast-name" }, el("b", {}, name), el("span", {}, `${chars.toLocaleString()}자`)),
       el("div", { class: "cast-pick" }, q, fg, fa, sel, play),
@@ -489,20 +504,29 @@ function updateCastState() {
   st.textContent = miss ? `${miss}명 선택 필요` : "✓ 모두 선택됨"; st.className = "state " + (miss ? "warn" : "ok");
 }
 
+const speedLabel = (v) => ({ 0.8: "아주 느리게", 0.85: "느리게", 0.9: "조금 느리게", 0.95: "살짝 느리게", 1: "보통 속도", 1.1: "조금 빠르게", 1.2: "빠르게", 1.3: "아주 빠르게" }[+v] || `속도 ${v}`);
+const emoLabel = (e) => ({ smart: "감정 자동", normal: "감정 보통", tonedown: "차분하게", toneup: "밝게", sad: "슬프게", happy: "기쁘게", angry: "화나게" }[e] || e);
 async function previewVoice(c, btn) {
   if (!c.voice_id) return toast("먼저 목소리를 고르세요");
   const player = $("#player");
   const v = state.voices.find((x) => x.id === c.voice_id);
   btn.disabled = true; const old = btn.textContent; btn.textContent = "…";
   try {
-    if (v?.preview) {
-      try { player.src = v.preview; await player.play(); return; } catch { /* 샘플을 직접 만들어 재생 */ }
+    // 지금 고른 속도·감정 그대로 짧은 샘플을 만들어 들려줌 (같은 설정은 저장해 두고 재사용)
+    let blob;
+    try {
+      const body = ttsBody(CFG.previewSample, c, c.emotion || "normal", 1, "", "");
+      const key = "pv:" + await sha1(JSON.stringify(body));
+      let rec = await idb.get(key);
+      if (!rec) { rec = { blob: await ttsRequest(body) }; await idb.put(key, rec); }
+      blob = rec.blob;
+    } catch (e) {
+      if (e.fatal || !v?.preview) throw e;
+      player.src = v.preview; await player.play();
+      toast("샘플을 만들지 못해 기본 미리듣기를 재생합니다 (속도·감정 미반영)", 5000); return;
     }
-    const body = ttsBody(CFG.previewSample, c, "normal", 1, "", "");
-    const key = "pv:" + await sha1(JSON.stringify(body));
-    let rec = await idb.get(key);
-    if (!rec) { rec = { blob: await ttsRequest(body) }; await idb.put(key, rec); }
-    player.src = URL.createObjectURL(rec.blob); await player.play();
+    player.src = URL.createObjectURL(blob); await player.play();
+    toast(`지금 설정(${speedLabel(c.speed)}, ${emoLabel(c.emotion)})으로 재생 중`, 3000);
   } catch (e) { toast("미리 듣기 실패: " + (e.message || e), 8000); }
   finally { btn.disabled = false; btn.textContent = old; }
 }
