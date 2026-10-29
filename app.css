@@ -95,3 +95,4 @@ textarea { width: 100%; min-height: 260px; resize: vertical; font-family: "Malgu
 .topright { margin-left: auto; display: grid; justify-items: end; gap: 2px; font-size: 13px; }
 .ext.ok { color: #9fe0b5; } .ext.warn { color: #ffcf7a; }
 .ver { color: #a89f94; }
+.cast-pick input.q { width: 170px; padding: 8px 10px; }

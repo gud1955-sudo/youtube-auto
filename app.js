@@ -341,9 +341,20 @@ async function tcFetch(path, opts = {}, tries = 6) {
   throw new ApiError(`타입캐스트 연결 실패 (${last}). 잠시 후 다시 시도하세요.`, false);
 }
 
+// 음성 만들기 요청 (최신 모델이 안 되는 목소리는 구형 모델로 한 번 더)
+async function ttsRequest(body) {
+  try {
+    return await (await tcFetch("/v1/text-to-speech", { method: "POST", body: JSON.stringify(body) })).blob();
+  } catch (e) {
+    if (e.fatal || body.model !== "ssfm-v30") throw e;
+    const b2 = { ...body, model: "ssfm-v21", prompt: { emotion_preset: ["normal", "happy", "sad", "angry"].includes(body.prompt?.emotion_preset) ? body.prompt.emotion_preset : "normal", emotion_intensity: body.prompt?.emotion_intensity ?? 1 } };
+    return await (await tcFetch("/v1/text-to-speech", { method: "POST", body: JSON.stringify(b2) })).blob();
+  }
+}
+
 async function loadVoices(force = false) {
   const info = $("#voices-info");
-  const cached = await store.get("voices", null);
+  const cached = await store.get("voices2", null);
   if (!force && cached && Date.now() - cached.at < 3 * 86400_000 && cached.list?.length) {
     state.voices = cached.list; info.textContent = `목소리 ${state.voices.length}개`; renderCast(); return;
   }
@@ -352,19 +363,22 @@ async function loadVoices(force = false) {
   try {
     let list;
     try {
-      list = await (await tcFetch(`/v3/voices?model=${CFG.model}`, {}, 2)).json();
+      list = await (await tcFetch(`/v3/voices`, {}, 2)).json();
     } catch (e) {
       if (e.fatal) throw e;
-      list = await (await tcFetch(`/v2/voices?model=${CFG.model}`, {}, 3)).json();
+      list = await (await tcFetch(`/v2/voices`, {}, 3)).json();
     }
+    if (!Array.isArray(list)) list = list.voices || list.data || list.items || [];
     state.voices = list.map((v) => ({
       id: v.voice_id,
       name: typeof v.voice_name === "object" ? (v.voice_name.kor || v.voice_name.eng) : v.voice_name,
+      alt: typeof v.voice_name === "object" ? (v.voice_name.eng || "") : "",
       gender: v.gender || "", age: v.age || "",
       uses: (v.use_cases || []).join(", "),
       preview: v.preview_url || "",
-    })).filter((v) => v.id).sort((a, b) => a.name.localeCompare(b.name, "ko"));
-    await store.set("voices", { at: Date.now(), list: state.voices });
+      models: (v.models || []).map((m) => m.version || m).filter(Boolean),
+    })).filter((v) => v.id).sort((a, b) => String(a.name).localeCompare(String(b.name), "ko"));
+    await store.set("voices2", { at: Date.now(), list: state.voices });
     info.textContent = `목소리 ${state.voices.length}개`;
     renderCast();
   } catch (e) {
@@ -372,12 +386,22 @@ async function loadVoices(force = false) {
   }
 }
 
-function ttsBody(text, v, emotion, intensity, prev, next) {
+function modelFor(voiceId) {
+  const v = state.voices.find((x) => x.id === voiceId);
+  if (!v || !v.models?.length || v.models.includes("ssfm-v30")) return "ssfm-v30";
+  return v.models.includes("ssfm-v21") ? "ssfm-v21" : v.models[0];
+}
+function ttsBody(text, v, emotion, intensity, prev, next, forceModel) {
+  const model = forceModel || modelFor(v.voice_id);
   const body = {
-    voice_id: v.voice_id, text, model: CFG.model, language: CFG.lang,
+    voice_id: v.voice_id, text, model, language: CFG.lang,
     output: { target_lufs: CFG.lufs, audio_pitch: +v.pitch || 0, audio_tempo: +v.speed || 1, audio_format: "wav" },
   };
-  if (emotion === "smart") {
+  if (model !== "ssfm-v30") {
+    // 구형 모델: 자동 감정·속삭임 등은 없음 → 보통/기쁨/슬픔/분노만
+    const ok = ["normal", "happy", "sad", "angry"].includes(emotion) ? emotion : "normal";
+    body.prompt = { emotion_preset: ok, emotion_intensity: intensity };
+  } else if (emotion === "smart") {
     body.prompt = { emotion_type: "smart" };
     if (prev) body.prompt.previous_text = prev.slice(-1500);
     if (next) body.prompt.next_text = next.slice(0, 1500);
@@ -412,22 +436,34 @@ function renderCast() {
     const fa = el("select", { class: "f", title: "나이대" }, el("option", { value: "" }, "나이 전체"), ...Object.entries(AGE_KO).map(([k, v]) => el("option", { value: k }, v)));
     fg.value = c.fg || ""; fa.value = c.fa || "";
     const sel = el("select", { class: "voice" });
+    const q = el("input", { type: "text", class: "q", placeholder: "이름 검색 (예: 소영)", title: "타입캐스트 목소리 ID(tc_…)를 붙여넣고 엔터를 눌러도 됩니다" });
+    q.value = c.q || "";
     const fill = () => {
       sel.innerHTML = "";
       sel.append(el("option", { value: "" }, state.voices.length ? "— 목소리 선택 —" : "— 위의 ‘목소리 목록 불러오기’를 누르세요 —"));
-      const list = state.voices.filter((v) => (!fg.value || v.gender === fg.value) && (!fa.value || v.age === fa.value));
+      const kw = q.value.trim().toLowerCase();
+      const list = state.voices.filter((v) => (!fg.value || v.gender === fg.value) && (!fa.value || v.age === fa.value)
+        && (!kw || String(v.name).toLowerCase().includes(kw) || String(v.alt).toLowerCase().includes(kw) || v.id.toLowerCase() === kw));
       let found = false;
       for (const v of list) {
-        const label = [v.name, GENDER_KO[v.gender], AGE_KO[v.age]].filter(Boolean).join(" · ");
+        const label = [v.name, GENDER_KO[v.gender], AGE_KO[v.age], v.models?.length && !v.models.includes("ssfm-v30") ? "구형 모델" : ""].filter(Boolean).join(" · ");
         sel.append(el("option", { value: v.id }, label)); if (v.id === c.voice_id) found = true;
       }
       if (c.voice_id && !found) {
         const v = state.voices.find((x) => x.id === c.voice_id);
         sel.append(el("option", { value: c.voice_id }, v ? `${v.name} (필터 밖)` : c.voice_id));
       }
+      if (kw && list.length === 0 && !c.voice_id) sel.options[0].textContent = "— 검색 결과 없음 —";
       sel.value = c.voice_id || "";
+      if (kw && list.length === 1 && !c.voice_id) { sel.value = list[0].id; sel.onchange?.(); }
     };
     fill();
+    let qd; q.oninput = () => { clearTimeout(qd); qd = setTimeout(() => { c.q = q.value; fill(); }, 200); };
+    q.onkeydown = (e) => {
+      if (e.key !== "Enter") return;
+      const id = q.value.trim();
+      if (/^tc_[0-9a-z]+$/i.test(id)) { c.voice_id = id; q.value = ""; c.q = ""; fill(); row.classList.remove("missing"); saveCast(); updateCastState(); toast("목소리 ID 를 직접 넣었습니다"); }
+    };
     fg.onchange = () => { c.fg = fg.value; fill(); saveCast(); };
     fa.onchange = () => { c.fa = fa.value; fill(); saveCast(); };
     sel.onchange = () => { c.voice_id = sel.value; row.classList.toggle("missing", !c.voice_id); saveCast(); updateCastState(); };
@@ -438,7 +474,7 @@ function renderCast() {
     emo.value = c.emotion; emo.onchange = () => { c.emotion = emo.value; saveCast(); };
     row.append(
       el("div", { class: "cast-name" }, el("b", {}, name), el("span", {}, `${chars.toLocaleString()}자`)),
-      el("div", { class: "cast-pick" }, fg, fa, sel, play),
+      el("div", { class: "cast-pick" }, q, fg, fa, sel, play),
       el("div", { class: "cast-extra" }, speed, emo),
     );
     box.append(row);
@@ -459,16 +495,15 @@ async function previewVoice(c, btn) {
   const v = state.voices.find((x) => x.id === c.voice_id);
   btn.disabled = true; const old = btn.textContent; btn.textContent = "…";
   try {
-    if (v?.preview && c.speed == 1 && !c.pitch) { player.src = v.preview; await player.play(); return; }
+    if (v?.preview) {
+      try { player.src = v.preview; await player.play(); return; } catch { /* 샘플을 직접 만들어 재생 */ }
+    }
     const body = ttsBody(CFG.previewSample, c, "normal", 1, "", "");
     const key = "pv:" + await sha1(JSON.stringify(body));
     let rec = await idb.get(key);
-    if (!rec) {
-      const blob = await (await tcFetch("/v1/text-to-speech", { method: "POST", body: JSON.stringify(body) }, 3)).blob();
-      rec = { blob }; await idb.put(key, rec);
-    }
+    if (!rec) { rec = { blob: await ttsRequest(body) }; await idb.put(key, rec); }
     player.src = URL.createObjectURL(rec.blob); await player.play();
-  } catch (e) { toast(e.message || "재생 실패", 5000); }
+  } catch (e) { toast("미리 듣기 실패: " + (e.message || e), 8000); }
   finally { btn.disabled = false; btn.textContent = old; }
 }
 
@@ -662,8 +697,7 @@ async function makeVoices(jobs, mock) {
     while (idx < todo.length && !state.cancel && !stop) {
       const j = todo[idx++];
       try {
-        const r = await tcFetch("/v1/text-to-speech", { method: "POST", body: JSON.stringify(j.body) });
-        const blob = await r.blob();
+        const blob = await ttsRequest(j.body);
         const pcm = await decodeAudio(await blob.arrayBuffer());
         j.samples = pcm.length;
         await idb.put(j.key, { blob, samples: pcm.length });
