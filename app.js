@@ -134,7 +134,8 @@ async function apiFetch(url, opts) {
 }
 function updateExtState() {
   const s = $("#ext-state"); if (!s) return;
-  s.textContent = bridge.ready ? "✓ 확장 프로그램 연결됨" : "확장 프로그램 없음 (무음 테스트만 가능)";
+  if (state.mode === "vrew") { s.textContent = ""; return; }
+  s.textContent = bridge.ready ? "✓ 확장 프로그램 연결됨" : "확장 프로그램 없음 (타입캐스트 사용 불가)";
   s.className = "ext " + (bridge.ready ? "ok" : "warn");
 }
 
@@ -264,9 +265,147 @@ function splitLong(text, limit = 900) {
 }
 
 // ───────────────────────── 화면: 대본 ─────────────────────────
+// ───────────────────────── 브루 음성 모드 ─────────────────────────
+const VREW_RATE = 24000; // 메모리 절약용 (영상에 넣을 때 48kHz 로 늘림)
+state.mode = "vrew";
+state.vrew = { pcm: null, dur: 0, audioName: "", srt: null, srtName: "" };
+
+function parseSrt(text) {
+  const t = (h, m, s, ms) => +h * 3600 + +m * 60 + +s + +ms / 1000;
+  const out = [];
+  for (const block of text.replace(/^﻿/, "").replace(/\r/g, "").split(/\n\s*\n/)) {
+    const lines = block.split("\n").map((x) => x.trim()).filter(Boolean);
+    const ti = lines.findIndex((l) => l.includes("-->"));
+    if (ti < 0) continue;
+    const m = lines[ti].match(/(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)/);
+    if (!m) continue;
+    const txt = lines.slice(ti + 1).join(" ").replace(/<[^>]+>/g, "").trim();
+    if (!txt) continue;
+    const ms = (x) => x.padEnd(3, "0").slice(0, 3);
+    out.push({ start: t(m[1], m[2], m[3], ms(m[4])), end: t(m[5], m[6], m[7], ms(m[8])), text: txt });
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
+
+async function decodeAt(arrayBuffer, rate) {
+  const ctx = new OfflineAudioContext(1, 1, rate);
+  const buf = await ctx.decodeAudioData(arrayBuffer);
+  if (buf.numberOfChannels === 1) return buf.getChannelData(0);
+  const out = new Float32Array(buf.length);
+  for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i++) out[i] += d[i] / buf.numberOfChannels; }
+  return out;
+}
+
+async function addVrewFiles(files) {
+  for (const f of files) {
+    if (/\.srt$/i.test(f.name)) {
+      const cues = parseSrt(await f.text());
+      if (!cues.length) { toast("자막 파일에서 자막을 찾지 못했습니다 (.srt 파일인지 확인)", 6000); continue; }
+      state.vrew.srt = cues; state.vrew.srtName = f.name;
+    } else if (f.type.startsWith("audio/") || /\.(mp3|wav|m4a|aac|ogg)$/i.test(f.name)) {
+      $("#vrew-audio-name").textContent = "읽는 중…";
+      try {
+        const pcm = await decodeAt(await f.arrayBuffer(), VREW_RATE);
+        state.vrew.pcm = pcm; state.vrew.dur = pcm.length / VREW_RATE; state.vrew.audioName = f.name;
+      } catch (e) { toast("음성 파일을 읽지 못했습니다: " + (e.message || e), 6000); }
+    } else toast(`${f.name}: 음성 파일이나 .srt 자막 파일이 아닙니다`, 5000);
+  }
+  updateVrewState(); onScriptChange();
+}
+
+function updateVrewState() {
+  const v = state.vrew, st = $("#vrew-state");
+  $("#vrew-audio-name").textContent = v.pcm ? `${v.audioName} (${clock(v.dur)})` : "없음";
+  $("#vrew-srt-name").textContent = v.srt ? `${v.srtName} (자막 ${v.srt.length}줄)` : "없음";
+  if (v.pcm && v.srt) {
+    const last = v.srt[v.srt.length - 1].end;
+    if (Math.abs(last - v.dur) > 20) { st.textContent = "음성과 자막 길이가 다름 — 같은 프로젝트에서 내보냈는지 확인"; st.className = "state warn"; }
+    else { st.textContent = "✓ 준비됨"; st.className = "state ok"; }
+  } else { st.textContent = v.pcm ? "자막 파일 필요" : v.srt ? "음성 파일 필요" : ""; st.className = "state warn"; }
+}
+
+// 자막 시간에 맞춰 장면 나누기
+function vrewScenes() {
+  const cues = state.vrew.srt; if (!cues?.length) return [];
+  const total = state.vrew.dur || cues[cues.length - 1].end + 1;
+  const norm = (x) => x.replace(/[\s\p{P}\p{S}]/gu, "");
+  const cl = cues.map((c) => Math.max(1, norm(c.text).length));
+  const cum = []; let acc = 0; for (const l of cl) { cum.push(acc); acc += l; }
+  const totC = acc;
+  const cueAt = (target) => { for (let i = 0; i < cues.length; i++) if (cum[i] + cl[i] / 2 > target) return i; return cues.length - 1; };
+  const { scenes: marked, loose } = parseScript($("#script").value);
+  const starts = [];
+  state.vrewMarked = marked.length > 0;
+  if (marked.length) {
+    const lens = marked.map((sc) => sc.lines.reduce((x, l) => x + norm(l.text).length, 0));
+    const totS = lens.reduce((x, y) => x + y, 0) || 1; let off = 0;
+    marked.forEach((sc, i) => { starts.push({ ci: cueAt(off / totS * totC), num: sc.num, chapter: sc.chapter }); off += lens[i]; });
+  } else {
+    const n = Math.max(1, Math.min(cues.length, photoCount() || Math.round(total / 35)));
+    for (let k = 0; k < n; k++) starts.push({ ci: cueAt(k * totC / n), num: k + 1, chapter: null });
+  }
+  starts[0].ci = 0;
+  const fixed = [];
+  for (const st of starts) { if (fixed.length && st.ci <= fixed[fixed.length - 1].ci) st.ci = fixed[fixed.length - 1].ci + 1; if (st.ci < cues.length) fixed.push(st); }
+  const scenes = fixed.map((st, i) => {
+    const endCi = i + 1 < fixed.length ? fixed[i + 1].ci : cues.length;
+    return { num: st.num, chapter: st.chapter, lines: cues.slice(st.ci, endCi).map((c) => ({ speaker: CFG.narrator, text: c.text })), start: i === 0 ? 0 : cues[st.ci].start, ci: st.ci };
+  });
+  scenes.forEach((sc, i) => (sc.end = i + 1 < scenes.length ? scenes[i + 1].start : total));
+  // 장면 표시 없이 [챕터] 만 있는 대본 → 글자 위치로 챕터 시간 맞추기
+  if (!marked.length && loose.some((l) => l.chapter)) {
+    const totS = loose.reduce((x, l) => x + norm(l.text).length, 0) || 1; let off = 0;
+    for (const l of loose) {
+      if (l.chapter) {
+        const ci = cueAt(off / totS * totC);
+        let si = scenes.length - 1; while (si > 0 && scenes[si].ci > ci) si--;
+        if (!scenes[si].chapter) scenes[si].chapter = l.chapter;
+      }
+      off += norm(l.text).length;
+    }
+  }
+  return scenes;
+}
+
+function vrewReader(pcm) {
+  // 24kHz → 48kHz (2배) 로 늘려서 꺼내기
+  let pos = 0;
+  return {
+    async read(n) {
+      const out = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const x = (pos + i) / 2, i0 = Math.floor(x), fr = x - i0;
+        if (i0 >= pcm.length) break;
+        const a = pcm[i0], b = i0 + 1 < pcm.length ? pcm[i0 + 1] : a;
+        out[i] = a + (b - a) * fr;
+      }
+      pos += n; return out;
+    },
+  };
+}
+
+function setMode(m) {
+  state.mode = m === "typecast" ? "typecast" : "vrew";
+  store.set("mode", state.mode);
+  document.body.classList.toggle("mode-vrew", state.mode === "vrew");
+  document.body.classList.toggle("mode-typecast", state.mode === "typecast");
+  document.querySelectorAll("[data-mode]").forEach((e) => (e.hidden = e.dataset.mode !== state.mode));
+  document.querySelectorAll("input[name=mode]").forEach((r) => (r.checked = r.value === state.mode));
+  let n = 0; document.querySelectorAll("main > .card").forEach((c) => { const num = c.querySelector(".num"); if (num && !c.hidden) num.textContent = ++n; });
+  if (state.mode === "vrew") $("#opt-mock").checked = false;
+  updateExtState();
+  onScriptChange();
+}
+
 function onScriptChange() {
   const text = $("#script").value;
   store.set("script", text);
+  if (state.mode === "vrew") {
+    state.problems = [];
+    state.auto = false; state.speakers = [];
+    state.scenes = vrewScenes();
+    renderSummary(); renderGrid(); return;
+  }
   let { scenes, problems, loose } = parseScript(text);
   state.auto = false;
   if (!scenes.length && loose.length) {
@@ -293,6 +432,23 @@ function estimate(scenes) {
 function renderSummary() {
   const box = $("#script-summary"); box.innerHTML = "";
   const st = $("#script-state");
+  if (state.mode === "vrew") {
+    st.textContent = ""; st.className = "state";
+    if (!state.scenes.length) { box.append(el("div", { class: "msgs" }, "1번 칸에 브루 자막 파일(.srt)을 넣으면 장면이 나타납니다.")); return; }
+    const k = (big, small) => el("div", { class: "k" }, el("b", {}, big), el("span", {}, small));
+    const dur = state.vrew.dur || state.scenes[state.scenes.length - 1].end;
+    box.append(
+      k(`${state.scenes.length}개`, "장면 (= 필요한 사진 수)"),
+      k(clock(dur), "영상 길이"),
+      k(`약 ${Math.round(dur / state.scenes.length)}초`, "사진 한 장당"),
+      k(`${state.scenes.filter((s) => s.chapter).length}개`, "챕터"),
+    );
+    box.append(el("div", { class: "msgs" }, state.vrewMarked
+      ? "대본의 [장면] 표시 위치에 맞춰 자막 시간으로 장면을 나눴습니다."
+      : photoCount() ? `사진 ${photoCount()}장에 맞춰 자막을 ${state.scenes.length}개 장면으로 고르게 나눴습니다.`
+        : `약 35초마다 사진이 바뀌도록 ${state.scenes.length}개 장면으로 나눴습니다. 사진을 넣으면 사진 장수에 맞춰 다시 나눕니다.`));
+    return;
+  }
   if (!state.scenes.length) {
     st.textContent = $("#script").value.trim() ? "장면 번호를 찾지 못함" : ""; st.className = "state err";
     if ($("#script").value.trim()) box.append(el("div", { class: "msgs msg-err" }, "[장면 001] 같은 장면 번호 줄이 있어야 합니다. ‘대본 형식 보기’를 눌러 확인하세요."));
@@ -542,7 +698,7 @@ function addImages(files) {
     if (m) { state.images.set(+m[1], f); numbered++; } else state.imageOrder.push(f);
   }
   toast(`사진 ${imgs.length}장 추가`);
-  if (state.auto) onScriptChange(); else renderGrid();
+  if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid();
 }
 function imageFor(num, idx) {
   if (state.images.has(num)) return state.images.get(num);
@@ -621,8 +777,13 @@ async function build() {
   const useSub = $("#opt-sub").checked, useZoom = $("#opt-zoom").checked, subSize = +$("#opt-subsize").value;
 
   // 확인
-  if (!state.scenes.length) return toast("2번 칸에 대본을 먼저 넣으세요");
-  if (!mock) {
+  const vrew = state.mode === "vrew";
+  if (vrew) {
+    if (!state.vrew.pcm) return toast("브루 음성 파일을 먼저 넣으세요");
+    if (!state.vrew.srt) return toast("브루 자막 파일(.srt)을 먼저 넣으세요");
+  }
+  if (!state.scenes.length) return toast("대본을 먼저 넣으세요");
+  if (!mock && !vrew) {
     if (!state.apiKey) return toast("1번 칸에 API 키를 먼저 저장하세요");
     const miss = state.speakers.filter(([n]) => !state.cast[n]?.voice_id).map(([n]) => n);
     if (miss.length) return toast(`목소리를 고르지 않은 인물: ${miss.join(", ")}`, 5000);
@@ -654,17 +815,26 @@ async function build() {
   try { wakeLock = await navigator.wakeLock?.request("screen"); } catch { /* 무시 */ }
   const t0 = performance.now();
   try {
-    // 1) 음성
-    const jobs = await prepareJobs(scenes, mock);
-    await makeVoices(jobs, mock);
-    checkCancel();
-    // 2) 시간 계산
-    const tl = buildTimeline(scenes);
-    const cues = useSub ? buildCues(scenes) : [];
+    let tl, cues, srt;
+    if (vrew) {
+      const end = previewOnly ? scenes[scenes.length - 1].end : state.vrew.dur;
+      const pcm = state.vrew.pcm.subarray(0, Math.min(state.vrew.pcm.length, Math.round(end * VREW_RATE)));
+      tl = { total: pcm.length / VREW_RATE, totalSamples: pcm.length * 2, reader: vrewReader(pcm) };
+      const all = state.vrew.srt.filter((c) => c.start < tl.total).map((c) => ({ start: c.start, end: Math.min(c.end, tl.total), lines: wrapLines(c.text, CFG.lineMax), dialog: false }));
+      cues = useSub ? all : []; srt = buildSrt(all);
+    } else {
+      // 1) 음성
+      const jobs = await prepareJobs(scenes, mock);
+      await makeVoices(jobs, mock);
+      checkCancel();
+      // 2) 시간 계산
+      tl = buildTimeline(scenes);
+      cues = useSub ? buildCues(scenes) : [];
+      srt = buildSrt(buildCues(scenes));
+    }
     // 3) 렌더링
     const out = await render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 });
     // 4) 결과물
-    const srt = buildSrt(buildCues(scenes));
     const chapters = buildChapters(scenes);
     showResult({ baseName, out, srt, chapters, dur: tl.total, secs: (performance.now() - t0) / 1000, mock, fileHandle });
   } catch (e) {
@@ -899,7 +1069,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
   const bmpCache = new Map(); // 장면 index → Promise<bitmap>
   const getBmp = (i) => { if (i >= scenes.length) return null; if (!bmpCache.has(i)) bmpCache.set(i, loadBitmap(files[i], zoom)); return bmpCache.get(i); };
 
-  const reader = new AudioReader(tl.segs, mock);
+  const reader = tl.reader || new AudioReader(tl.segs, mock);
   const totalFrames = Math.max(1, Math.round(tl.total * fps));
   let si = 0, ci = 0, bmp = await getBmp(0); getBmp(1);
   let audioWritten = 0;
@@ -1004,6 +1174,13 @@ async function init() {
   state.apiKey = await store.get("apiKey", "");
   state.cast = await store.get("cast", {});
   state.single = await store.get("single", true);
+  state.mode = await store.get("mode", "vrew");
+  document.querySelectorAll("input[name=mode]").forEach((r) => (r.onchange = () => r.checked && setMode(r.value)));
+  const vd = $("#vrew-drop");
+  $("#vrew-input").onchange = (e) => { addVrewFiles([...e.target.files]); e.target.value = ""; };
+  ["dragenter", "dragover"].forEach((ev) => vd.addEventListener(ev, (e) => { e.preventDefault(); vd.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((ev) => vd.addEventListener(ev, (e) => { e.preventDefault(); vd.classList.remove("over"); }));
+  vd.addEventListener("drop", (e) => addVrewFiles([...e.dataTransfer.files]));
   $("#opt-single").checked = state.single;
   $("#opt-single").onchange = () => { state.single = $("#opt-single").checked; store.set("single", state.single); onScriptChange(); };
   if (state.apiKey) { $("#api-key").value = state.apiKey; $("#key-state").textContent = "✓ 저장됨"; $("#key-state").className = "state ok"; }
@@ -1027,15 +1204,15 @@ async function init() {
   ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
   drop.addEventListener("drop", (e) => addImages(e.dataTransfer.files));
   window.addEventListener("dragover", (e) => e.preventDefault());
-  window.addEventListener("drop", (e) => { e.preventDefault(); if (e.target.closest?.("#drop")) return; if (e.dataTransfer?.files?.length) addImages(e.dataTransfer.files); });
-  $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto) onScriptChange(); else renderGrid(); };
+  window.addEventListener("drop", (e) => { e.preventDefault(); if (e.target.closest?.("#drop, #vrew-drop")) return; if (e.dataTransfer?.files?.length) addImages(e.dataTransfer.files); });
+  $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); };
 
   $("#build").onclick = build;
   $("#cancel").onclick = () => { state.cancel = true; setStage("중지하는 중…"); };
   $("#cache-clear").onclick = async () => { if (confirm("저장된 음성을 모두 지울까요? 다시 만들면 크레딧이 듭니다.")) { await idb.clear(); refreshCacheInfo(); toast("지웠습니다"); } };
   window.addEventListener("beforeunload", (e) => { if (state.building) { e.preventDefault(); e.returnValue = ""; } });
 
-  onScriptChange();
+  setMode(state.mode);
   refreshCacheInfo();
   loadVoices(false);
 }
