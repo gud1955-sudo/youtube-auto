@@ -691,13 +691,18 @@ async function previewVoice(c, btn) {
 function addImages(files) {
   const imgs = [...files].filter((f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(f.name));
   if (!imgs.length) return toast("사진 파일이 아닙니다");
-  imgs.sort((a, b) => a.name.localeCompare(b.name, "ko", { numeric: true }));
-  let numbered = 0;
-  for (const f of imgs) {
-    const m = f.name.match(/(\d+)/);
-    if (m) { state.images.set(+m[1], f); numbered++; } else state.imageOrder.push(f);
+  // 파일 이름이 숫자로 시작하면(001.png, 12_장면.jpg) 그 번호의 장면에 넣고,
+  // 아니면(Flow 다운로드 이름 등) 다운로드한 순서대로 장면에 넣는다
+  const lead = (f) => f.name.match(/^\s*(\d{1,4})(?!\d)/);
+  const numbered = imgs.filter(lead);
+  if (numbered.length >= imgs.length * 0.8) {
+    for (const f of imgs) { const m = lead(f); if (m) state.images.set(+m[1], f); else state.imageOrder.push(f); }
+    toast(`사진 ${imgs.length}장 추가 (파일 이름 번호대로)`);
+  } else {
+    imgs.sort((a, b) => (a.lastModified - b.lastModified) || a.name.localeCompare(b.name, "ko", { numeric: true }));
+    state.imageOrder.push(...imgs);
+    toast(`사진 ${imgs.length}장 추가 (다운로드한 순서대로)`, 4500);
   }
-  toast(`사진 ${imgs.length}장 추가`);
   if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid();
 }
 function imageFor(num, idx) {
