@@ -134,7 +134,7 @@ async function apiFetch(url, opts) {
 }
 function updateExtState() {
   const s = $("#ext-state"); if (!s) return;
-  if (state.mode === "vrew") { s.textContent = ""; return; }
+  if (state.mode !== "typecast") { s.textContent = ""; return; }
   s.textContent = bridge.ready ? "✓ 확장 프로그램 연결됨" : "확장 프로그램 없음 (타입캐스트 사용 불가)";
   s.className = "ext " + (bridge.ready ? "ok" : "warn");
 }
@@ -385,10 +385,11 @@ function vrewReader(pcm) {
 }
 
 function setMode(m) {
-  state.mode = m === "typecast" ? "typecast" : "vrew";
+  state.mode = ["typecast", "google"].includes(m) ? m : "vrew";
   store.set("mode", state.mode);
   document.body.classList.toggle("mode-vrew", state.mode === "vrew");
   document.body.classList.toggle("mode-typecast", state.mode === "typecast");
+  document.body.classList.toggle("mode-google", state.mode === "google");
   document.querySelectorAll("[data-mode]").forEach((e) => (e.hidden = e.dataset.mode !== state.mode));
   document.querySelectorAll("input[name=mode]").forEach((r) => (r.checked = r.value === state.mode));
   let n = 0; document.querySelectorAll("main > .card").forEach((c) => { const num = c.querySelector(".num"); if (num && !c.hidden) num.textContent = ++n; });
@@ -460,7 +461,7 @@ function renderSummary() {
   box.append(
     k(`${state.scenes.length}개`, "장면 (= 필요한 사진 수)"),
     k(`약 ${clock(e.secs)}`, "예상 영상 길이 (±15%)"),
-    k(`${e.chars.toLocaleString()}자`, "글자 수 ≈ 크레딧"),
+    k(`${e.chars.toLocaleString()}자`, state.mode === "google" ? "글자 수 (무료 매달 100만 자)" : "글자 수 ≈ 크레딧"),
     k(`${state.speakers.length}명`, "목소리 (내레이션 포함)"),
     k(`${chapters}개`, "챕터"),
   );
@@ -813,7 +814,11 @@ async function build() {
     if (!state.vrew.srt) return toast("브루 자막 파일(.srt)을 먼저 넣으세요");
   }
   if (!state.scenes.length) return toast("대본을 먼저 넣으세요");
-  if (!mock && !vrew) {
+  if (!mock && state.mode === "google") {
+    if (!state.g?.key) return toast("1번 칸에 구글 API 키를 먼저 저장하세요");
+    if (!state.g.voice) return toast("목소리를 먼저 고르세요");
+    gSyncCast();
+  } else if (!mock && !vrew) {
     if (!state.apiKey) return toast("1번 칸에 API 키를 먼저 저장하세요");
     const miss = state.speakers.filter(([n]) => !state.cast[n]?.voice_id).map(([n]) => n);
     if (miss.length) return toast(`목소리를 고르지 않은 인물: ${miss.join(", ")}`, 5000);
@@ -1204,7 +1209,9 @@ async function init() {
   state.apiKey = await store.get("apiKey", "");
   state.cast = await store.get("cast", {});
   state.single = await store.get("single", true);
-  state.mode = "vrew"; // 타입캐스트 방식은 화면에서 뺌 (브루 음성 전용)
+  state.mode = await store.get("mode", "google");
+  if (state.mode === "typecast") state.mode = "google"; // 타입캐스트 방식은 화면에서 뺌
+  state.single = true;
   document.querySelectorAll("input[name=mode]").forEach((r) => (r.onchange = () => r.checked && setMode(r.value)));
   const vd = $("#vrew-drop");
   $("#vrew-input").onchange = (e) => { addVrewFiles([...e.target.files]); e.target.value = ""; };

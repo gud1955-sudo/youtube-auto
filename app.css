@@ -107,7 +107,7 @@ textarea { width: 100%; min-height: 260px; resize: vertical; font-family: "Malgu
 .drop.small { padding: 18px; margin: 0; }
 .vrew-info { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 6px; align-content: center; font-size: 15px; }
 .card-head h2 small { color: var(--muted); font-weight: 400; font-size: 14px; }
-body.mode-typecast .opt-only { display: none; }
+body:not(.mode-vrew) .opt-only { display: none; }
 @media (max-width: 720px) { .vrew-files { grid-template-columns: 1fr; } }
 [hidden] { display: none !important; }
 #gem-key { flex: 1; min-width: 240px; }
@@ -128,3 +128,5 @@ h3.sub .hint { font-weight: 400; margin-left: 4px; }
 .tile .regen { position: absolute; top: 6px; right: 6px; font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 6px; border: 0; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; }
 .tile.thumb .row { margin-top: 6px; gap: 4px; }
 .tile.thumb .btn { padding: 4px 10px; font-size: 13px; }
+#g-key { flex: 1; min-width: 240px; }
+select.gvoice { flex: 1; min-width: 260px; }

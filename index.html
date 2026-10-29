@@ -4,14 +4,42 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>인생이야기 영상 제작기</title>
-<link rel="stylesheet" href="app.css?v=7">
+<link rel="stylesheet" href="app.css?v=8">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo">인</span><div><h1>인생이야기 영상 제작기</h1><p>브루 음성·자막 넣기 → 사진 만들기 → 영상 만들기</p></div><div class="topright"><span id="ext-state" class="ext"></span><span id="version" class="ver"></span></div></div>
+  <div class="brand"><span class="logo">인</span><div><h1>인생이야기 영상 제작기</h1><p>대본 넣기 → 목소리 고르기 → 사진 넣기 → 영상 만들기</p></div><div class="topright"><span id="ext-state" class="ext"></span><span id="version" class="ver"></span></div></div>
 </header>
 
 <main>
+  <!-- 음성 방식 -->
+  <section class="card modes" id="sec-mode">
+    <div class="card-head"><h2>음성은 어디서 만드나요?</h2></div>
+    <label class="mode"><input type="radio" name="mode" value="google"> <span><b>제작기에서 바로 만들기 (구글 음성)</b><small>대본만 넣으면 음성·자막까지 자동 · 매달 100만 자 무료</small></span></label>
+    <label class="mode"><input type="radio" name="mode" value="vrew"> <span><b>브루에서 만든 음성 파일 쓰기</b><small>브루에서 송세아로 만든 음성(mp3) + 자막(srt)을 넣음</small></span></label>
+  </section>
+
+  <!-- 구글 음성 -->
+  <section class="card" id="sec-gkey" data-mode="google">
+    <div class="card-head"><span class="num">1</span><h2>구글 음성 설정</h2><span class="state" id="g-key-state"></span></div>
+    <div class="row">
+      <input type="password" id="g-key" placeholder="구글 클라우드 API 키 붙여넣기 (사용 안내 참고)" autocomplete="off">
+      <button id="g-key-save" class="btn">저장</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <select id="g-voice" class="gvoice"></select>
+      <button id="g-play" class="btn play">▶ 듣기</button>
+      <select id="g-speed" title="읽는 속도">
+        <option value="0.8">속도: 아주 느리게</option><option value="0.85">속도: 느리게</option><option value="0.9">속도: 조금 느리게</option>
+        <option value="0.95">속도: 살짝 느리게</option><option value="1">속도: 보통</option><option value="1.05">속도: 살짝 빠르게</option>
+        <option value="1.1">속도: 조금 빠르게</option><option value="1.2">속도: 빠르게</option>
+      </select>
+      <span class="state" id="g-voice-state"></span>
+    </div>
+    <div class="row tools" style="margin-top:8px"><button class="btn ghost" id="g-voices-load">목소리 목록 다시 불러오기</button><span class="hint" id="g-voices-info"></span></div>
+    <p class="hint">키는 이 브라우저에만 저장됩니다. ▶ 듣기는 지금 고른 목소리·속도로 짧은 문장을 읽어 줍니다.</p>
+  </section>
+
   <!-- 브루 음성 -->
   <section class="card" id="sec-vrew" data-mode="vrew">
     <div class="card-head"><span class="num">1</span><h2>브루 음성 · 자막 넣기</h2><span class="state" id="vrew-state"></span></div>
@@ -60,7 +88,7 @@
 
   <!-- 사진 만들기 -->
   <section class="card" id="sec-gen">
-    <div class="card-head"><span class="num">3</span><h2>사진 만들기 <small>(Gemini 자동 생성)</small></h2><span class="state" id="gen-state"></span></div>
+    <div class="card-head"><span class="num">3</span><h2>사진 자동 생성 <small>(선택 · Gemini API 키가 있을 때만)</small></h2><span class="state" id="gen-state"></span></div>
     <div class="row">
       <input type="password" id="gem-key" placeholder="Gemini API 키 (aistudio.google.com → Get API key)" autocomplete="off">
       <button id="gem-key-save" class="btn">저장</button><span class="state" id="gem-key-state"></span>
@@ -103,6 +131,7 @@
     <div class="card-head"><span class="num">5</span><h2>영상 만들기</h2></div>
     <div class="opts">
       <label><input type="checkbox" id="opt-preview"> 미리보기: 처음 <input type="number" id="opt-preview-n" value="3" min="1" max="999"> 개 장면만</label>
+      <label data-mode="google"><input type="checkbox" id="opt-mock"> 무음 테스트 (음성 없이 사진 전환·자막 위치만 확인)</label>
       <label><input type="checkbox" id="opt-sub" checked> 자막 넣기</label>
       <label><input type="checkbox" id="opt-zoom" checked> 사진 천천히 확대·축소 효과</label>
       <label>자막 크기
@@ -126,7 +155,7 @@
 <!-- 예전 타입캐스트 방식용 요소 (화면에는 안 보임) -->
 <div hidden id="legacy">
   <input id="api-key"><button id="key-save"></button><span id="key-state"></span>
-  <input type="checkbox" id="opt-mock"><input type="checkbox" id="opt-single">
+  <input type="checkbox" id="opt-single">
   <div id="cast"></div><span id="cast-state"></span><span id="voices-info"></span><button id="voices-load"></button>
   <button id="cache-clear"></button><span id="cache-info"></span>
 </div>
@@ -134,7 +163,8 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js"></script>
 <script src="lib/jszip.min.js"></script>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 <script src="gen.js?v=1"></script>
+<script src="tts.js?v=1"></script>
 </body>
 </html>
