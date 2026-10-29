@@ -4,21 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>인생이야기 영상 제작기</title>
-<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="app.css?v=6">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo">인</span><div><h1>인생이야기 영상 제작기</h1><p>대본 붙여넣기 → 목소리 고르기 → 사진 넣기 → 영상 만들기</p></div><div class="topright"><span id="ext-state" class="ext"></span><span id="version" class="ver"></span></div></div>
+  <div class="brand"><span class="logo">인</span><div><h1>인생이야기 영상 제작기</h1><p>브루 음성·자막 넣기 → 사진 넣기 → 영상 만들기</p></div><div class="topright"><span id="ext-state" class="ext"></span><span id="version" class="ver"></span></div></div>
 </header>
 
 <main>
-  <!-- 음성 방식 -->
-  <section class="card modes" id="sec-mode">
-    <div class="card-head"><h2>음성은 어디서 만드나요?</h2></div>
-    <label class="mode"><input type="radio" name="mode" value="vrew"> <span><b>브루에서 만든 음성 쓰기</b><small>브루 크레딧으로 음성 생성 → 음성 파일 + 자막 파일만 넣으면 됨 · 추가 비용 없음</small></span></label>
-    <label class="mode"><input type="radio" name="mode" value="typecast"> <span><b>타입캐스트로 바로 만들기</b><small>대본만 넣으면 음성까지 자동 · 타입캐스트 API 요금 별도</small></span></label>
-  </section>
-
   <!-- 브루 음성 -->
   <section class="card" id="sec-vrew" data-mode="vrew">
     <div class="card-head"><span class="num">1</span><h2>브루 음성 · 자막 넣기</h2><span class="state" id="vrew-state"></span></div>
@@ -43,16 +36,6 @@
     </div>
   </section>
 
-  <!-- 1. API 키 -->
-  <section class="card" id="sec-key" data-mode="typecast">
-    <div class="card-head"><span class="num">1</span><h2>타입캐스트 API 키</h2><span class="state" id="key-state"></span></div>
-    <div class="row">
-      <input type="password" id="api-key" placeholder="typecast.ai → API 설정 → API Key 발급 → 복사해서 붙여넣기" autocomplete="off">
-      <button id="key-save" class="btn">저장</button>
-    </div>
-    <p class="hint">한 번 저장하면 다음부터는 입력하지 않아도 됩니다.</p>
-  </section>
-
   <!-- 2. 대본 -->
   <section class="card" id="sec-script">
     <div class="card-head"><span class="num">2</span><h2>대본 <small class="opt-only">(선택)</small></h2><span class="state" id="script-state"></span></div>
@@ -75,18 +58,6 @@
     <div id="script-summary" class="summary"></div>
   </section>
 
-  <!-- 3. 목소리 -->
-  <section class="card" id="sec-cast" data-mode="typecast">
-    <div class="card-head"><span class="num">3</span><h2>목소리 고르기</h2><span class="state" id="cast-state"></span></div>
-    <label class="single"><input type="checkbox" id="opt-single" checked> <b>한 목소리로 전부 읽기</b> <span class="hint">(인물 대사도 내레이터 목소리로 읽음 · 끄면 인물마다 다른 목소리)</span></label>
-    <div class="row tools">
-      <button class="btn ghost" id="voices-load">목소리 목록 불러오기</button>
-      <span class="hint" id="voices-info"></span>
-    </div>
-    <div id="cast" class="cast"><p class="empty">대본을 붙여넣으면 등장인물이 여기에 나타납니다.</p></div>
-    <p class="hint">고른 목소리는 인물 이름별로 기억됩니다. 다음 회차에 같은 이름이 나오면 자동으로 채워집니다.</p>
-  </section>
-
   <!-- 4. 사진 -->
   <section class="card" id="sec-images">
     <div class="card-head"><span class="num">4</span><h2>사진 넣기</h2><span class="state" id="img-state"></span></div>
@@ -104,7 +75,6 @@
     <div class="card-head"><span class="num">5</span><h2>영상 만들기</h2></div>
     <div class="opts">
       <label><input type="checkbox" id="opt-preview"> 미리보기: 처음 <input type="number" id="opt-preview-n" value="3" min="1" max="999"> 개 장면만</label>
-      <label data-mode="typecast"><input type="checkbox" id="opt-mock"> 무음 테스트 (크레딧 사용 안 함 — 사진·자막 확인용)</label>
       <label><input type="checkbox" id="opt-sub" checked> 자막 넣기</label>
       <label><input type="checkbox" id="opt-zoom" checked> 사진 천천히 확대·축소 효과</label>
       <label>자막 크기
@@ -122,20 +92,19 @@
       <canvas id="preview" width="1920" height="1080"></canvas>
     </div>
     <div id="result" class="result" hidden></div>
-    <details class="more">
-      <summary>기타</summary>
-      <div class="row tools">
-        <button class="btn ghost" id="cache-clear">저장된 음성 지우기</button>
-        <span class="hint" id="cache-info"></span>
-      </div>
-      <p class="hint">같은 대사·같은 목소리로 다시 만들 때는 저장된 음성을 다시 쓰므로 크레딧이 들지 않습니다. 업로드를 마친 뒤 지우면 용량이 확보됩니다.</p>
-    </details>
   </section>
 </main>
 
+<!-- 예전 타입캐스트 방식용 요소 (화면에는 안 보임) -->
+<div hidden id="legacy">
+  <input id="api-key"><button id="key-save"></button><span id="key-state"></span>
+  <input type="checkbox" id="opt-mock"><input type="checkbox" id="opt-single">
+  <div id="cast"></div><span id="cast-state"></span><span id="voices-info"></span><button id="voices-load"></button>
+  <button id="cache-clear"></button><span id="cache-info"></span>
+</div>
 <div id="toast" class="toast" hidden></div>
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

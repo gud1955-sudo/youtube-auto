@@ -1174,7 +1174,7 @@ async function init() {
   state.apiKey = await store.get("apiKey", "");
   state.cast = await store.get("cast", {});
   state.single = await store.get("single", true);
-  state.mode = await store.get("mode", "vrew");
+  state.mode = "vrew"; // 타입캐스트 방식은 화면에서 뺌 (브루 음성 전용)
   document.querySelectorAll("input[name=mode]").forEach((r) => (r.onchange = () => r.checked && setMode(r.value)));
   const vd = $("#vrew-drop");
   $("#vrew-input").onchange = (e) => { addVrewFiles([...e.target.files]); e.target.value = ""; };
