@@ -8,7 +8,7 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo">인</span><div><h1>인생이야기 영상 제작기</h1><p>대본 넣기 → 목소리 고르기 → 사진 넣기 → 영상 만들기</p></div><div class="topright"><span id="ext-state" class="ext"></span><span id="version" class="ver"></span></div></div>
+  <div class="brand"><span class="logo">인</span><div><h1>인생이야기 영상 제작기</h1><p>대본 넣기 → 목소리 고르기 → Flow 사진 넣기 → 영상 만들기</p></div><div class="topright"><span id="ext-state" class="ext"></span><span id="version" class="ver"></span></div></div>
 </header>
 
 <main>
@@ -93,7 +93,7 @@
   </section>
 
   <!-- 사진 만들기 -->
-  <section class="card" id="sec-gen">
+  <section class="card" id="sec-gen" hidden>
     <div class="card-head"><span class="num">3</span><h2>사진 자동 생성 <small>(선택 · Gemini API 키가 있을 때만)</small></h2><span class="state" id="gen-state"></span></div>
     <div class="row">
       <input type="password" id="gem-key" placeholder="Gemini API 키 (aistudio.google.com → Get API key)" autocomplete="off">
@@ -122,7 +122,7 @@
 
   <!-- 4. 사진 -->
   <section class="card" id="sec-images">
-    <div class="card-head"><span class="num">4</span><h2>사진 확인 · 직접 넣기</h2><span class="state" id="img-state"></span></div>
+    <div class="card-head"><span class="num">4</span><h2>사진 넣기</h2><span class="state" id="img-state"></span></div>
     <label id="drop" class="drop">
       <input type="file" id="img-input" accept="image/*,.zip" multiple hidden>
       <strong>사진(또는 압축 파일 zip)을 여기로 한꺼번에 끌어다 놓으세요</strong>
