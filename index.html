@@ -6,7 +6,7 @@
 <title>인생이야기 영상 제작기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=22">
+<link rel="stylesheet" href="app.css?v=24">
 </head>
 <body>
 <header class="top">
@@ -124,11 +124,25 @@
 
   <!-- 4. 사진 -->
   <section class="card" id="sec-images">
-    <div class="card-head"><span class="num">4</span><h2>사진 넣기</h2><span class="state" id="img-state"></span></div>
+    <div class="card-head"><span class="num">4</span><h2>영상 · 사진 넣기</h2><span class="state" id="img-state"></span></div>
+    <h3 class="subhead">맨 앞 하이라이트 영상 <small>(선택 · 영상 1 → 영상 2 순서로 맨 처음에 나옴, 소리 없이)</small></h3>
+    <div class="clip-row">
+      <div class="clip-slot" data-part="1">
+        <label class="drop small"><input type="file" accept="video/*" hidden><strong>영상 1</strong><span class="clip-name">끌어다 놓거나 클릭</span></label>
+        <video muted playsinline hidden></video>
+        <button class="btn ghost clip-del" hidden>빼기</button>
+      </div>
+      <div class="clip-slot" data-part="2">
+        <label class="drop small"><input type="file" accept="video/*" hidden><strong>영상 2</strong><span class="clip-name">끌어다 놓거나 클릭</span></label>
+        <video muted playsinline hidden></video>
+        <button class="btn ghost clip-del" hidden>빼기</button>
+      </div>
+    </div>
+    <h3 class="subhead">장면 사진</h3>
     <label id="drop" class="drop">
       <input type="file" id="img-input" accept="image/*,video/*,.zip" multiple hidden>
-      <strong>사진·영상(또는 압축 파일 zip)을 여기로 한꺼번에 끌어다 놓으세요</strong>
-      <span>또는 클릭해서 선택 · 사진 이름이 001, 002…면 그 번호대로 · 영상 클립은 001-1.mp4, 001-2.mp4 처럼 이름을 붙이면 그 장면 앞부분에 순서대로 나옵니다</span>
+      <strong>사진(또는 압축 파일 zip)을 여기로 한꺼번에 끌어다 놓으세요</strong>
+      <span>또는 클릭해서 선택 · 사진 이름이 001, 002…면 그 번호대로 들어갑니다</span>
     </label>
     <div class="row tools"><button class="btn ghost" id="img-clear">사진 모두 빼기</button></div>
     <div id="grid" class="grid"></div>
@@ -190,7 +204,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js"></script>
 <script src="lib/jszip.min.js"></script>
-<script src="app.js?v=24"></script>
+<script src="app.js?v=25"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=4"></script>
 </body>

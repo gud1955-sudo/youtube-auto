@@ -152,3 +152,14 @@ select.gvoice { flex: 1; min-width: 260px; }
 .sub-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch; }
 .sub-row .drop { flex: 1 1 260px; margin: 0; }
 .sub-row video { width: 240px; max-width: 100%; aspect-ratio: 16/9; border-radius: 8px; background: #000; }
+.subhead { font-size: 16px; margin: 4px 0 8px; }
+.subhead small { font-weight: 400; color: var(--muted); font-size: 13px; }
+.clip-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+.clip-slot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.clip-slot .drop { flex: 1 1 100%; }
+.clip-slot .drop { margin: 0; }
+.clip-slot.has .drop { border-style: solid; border-color: #2e8b57; background: #eef7f1; }
+.clip-slot.has .clip-name { color: #2e7d4f; font-weight: 600; }
+.clip-slot video { width: 160px; aspect-ratio: 16/9; border-radius: 6px; background: #000; }
+.clip-slot .clip-del { padding: 6px 12px; }
+@media (max-width: 560px) { .clip-row { grid-template-columns: 1fr; } }

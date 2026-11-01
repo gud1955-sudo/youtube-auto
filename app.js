@@ -749,12 +749,15 @@ const thumbCache = new Map();
 function thumbURL(f) { if (!thumbCache.has(f)) thumbCache.set(f, URL.createObjectURL(f)); return thumbCache.get(f); }
 
 function renderGrid() {
+  drawClips?.();
   const g = $("#grid"); g.innerHTML = "";
   const st = $("#img-state");
   if (!state.scenes.length) {
     g.append(el("p", { class: "empty" }, state.images.size + state.imageOrder.length ? `사진 ${state.images.size + state.imageOrder.length}장 들어옴 — 대본을 넣으면 장면별로 보여줍니다.` : "대본을 넣으면 장면별 사진 칸이 생깁니다."));
     st.textContent = ""; return;
   }
+  const first = clipScene();
+  for (const [k, list] of [...state.videos]) if (k !== first && list.some((x) => x.part <= 2) && !state.scenes.some((sc) => sc.num === k)) { state.videos.delete(k); state.videos.set(first, [...(state.videos.get(first) || []), ...list].sort((a, b) => a.part - b.part)); }
   const info = state.scenes.map((sc, i) => ({ sc, i, f: imageFor(sc.num, i), nv: state.videos.get(sc.num)?.length || 0 }));
   const missList = info.filter((x) => !x.f && !x.nv);
   const total = info.length, have = total - missList.length;
@@ -794,6 +797,43 @@ function renderGrid() {
       el("div", { class: "cap" }, el("b", {}, pad3(sc.num)), sc.chapter ? `· ${sc.chapter}` : "", el("span", {}, f ? f.name : sc.lines[0].text))));
   }
   st.textContent = `✓ 사진 ${have}장`; st.className = "state ok";
+}
+
+// ───────────────────────── 맨 앞 하이라이트 영상 1·2 (첫 장면 앞부분에 순서대로) ─────────────────────────
+const clipScene = () => state.scenes[0]?.num ?? 1;
+function setClip(part, file) {
+  const num = clipScene();
+  // 다른 번호로 들어가 있던 같은 순서 영상도 정리
+  for (const [k, list] of state.videos) { const l = list.filter((x) => x.part !== part); if (l.length) state.videos.set(k, l); else state.videos.delete(k); }
+  if (file) { const l = state.videos.get(num) || []; l.push({ part, file }); l.sort((a, b) => a.part - b.part); state.videos.set(num, l); }
+  renderGrid();
+}
+const clipURLs = {};
+function drawClips() {
+  document.querySelectorAll(".clip-slot").forEach((slot) => {
+    const part = +slot.dataset.part;
+    let f = null; for (const list of state.videos.values()) { const x = list.find((y) => y.part === part); if (x) f = x.file; }
+    slot.querySelector(".clip-name").textContent = f ? "✓ " + f.name : "끌어다 놓거나 클릭";
+    slot.classList.toggle("has", !!f);
+    const v = slot.querySelector("video");
+    if (clipURLs[part] && (!f || clipURLs[part].f !== f)) { URL.revokeObjectURL(clipURLs[part].u); delete clipURLs[part]; v.removeAttribute("src"); }
+    if (f && !clipURLs[part]) { clipURLs[part] = { f, u: URL.createObjectURL(f) }; v.src = clipURLs[part].u; }
+    v.hidden = !f; slot.querySelector(".clip-del").hidden = !f;
+  });
+}
+function initClips() {
+  document.querySelectorAll(".clip-slot").forEach((slot) => {
+    const part = +slot.dataset.part, inp = slot.querySelector("input"), drop = slot.querySelector(".drop");
+    const take = (f) => { if (!f) return; if (!(f.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(f.name))) return toast("영상 파일(mp4)을 넣어 주세요"); setClip(part, f); };
+    inp.onchange = (e) => { take(e.target.files[0]); e.target.value = ""; };
+    drop.ondragover = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.add("over"); };
+    drop.ondragleave = () => drop.classList.remove("over");
+    drop.ondrop = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("over"); take(e.dataTransfer.files[0]); };
+    slot.querySelector(".clip-del").onclick = () => setClip(part, null);
+    const v = slot.querySelector("video");
+    v.onmouseenter = () => v.play().catch(() => {}); v.onmouseleave = () => { v.pause(); v.currentTime = 0; };
+  });
+  drawClips();
 }
 
 // ───────────────────────── 구독·좋아요 영상 (한 번 넣으면 브라우저에 계속 저장) ─────────────────────────
@@ -1417,8 +1457,8 @@ async function init() {
   drop.addEventListener("drop", (e) => addImages(e.dataTransfer.files));
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => { e.preventDefault(); if (e.target.closest?.("#drop, #vrew-drop")) return; if (e.dataTransfer?.files?.length) addImages(e.dataTransfer.files); });
-  initSub();
-  $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; state.videos.clear(); for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); };
+  initSub(); initClips();
+  $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); };
 
   $("#build").onclick = build;
   $("#cancel").onclick = () => { state.cancel = true; setStage("중지하는 중…"); };
