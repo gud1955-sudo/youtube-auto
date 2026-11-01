@@ -1230,7 +1230,16 @@ async function init() {
   const ta = $("#script");
   ta.value = await store.get("script", "");
   let deb; ta.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(onScriptChange, 350); });
-  $("#script-file").onchange = async (e) => { const f = e.target.files[0]; if (f) { ta.value = await f.text(); onScriptChange(); } e.target.value = ""; };
+  // 파일 여러 개(챕터 1·2·3)를 한꺼번에 고르면 이름 순서대로 이어 붙임
+  $("#script-file").onchange = async (e) => {
+    const fs = [...e.target.files].sort((a, b) => a.name.localeCompare(b.name, "ko", { numeric: true }));
+    if (fs.length) {
+      const texts = await Promise.all(fs.map(async (f) => (await f.text()).replace(/^\ufeff/, "").trim()));
+      ta.value = texts.join("\n\n"); onScriptChange();
+      if (fs.length > 1) toast("이 순서로 이어 붙였습니다: " + fs.map((f) => f.name).join(" → "), 6000);
+    }
+    e.target.value = "";
+  };
   $("#script-clear").onclick = () => { ta.value = ""; onScriptChange(); };
   $("#format-help-btn").onclick = () => ($("#format-help").hidden = !$("#format-help").hidden);
   $("#voices-load").onclick = () => loadVoices(true);
