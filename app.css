@@ -135,3 +135,16 @@ select.gvoice { flex: 1; min-width: 260px; }
 .btn.pick { padding: 7px 12px; font-size: 14px; background: var(--soft); color: var(--ink); border: 1px solid var(--line); }
 .btn.pick.on { border-color: var(--accent); background: #fbeeea; }
 .vbadge { position: absolute; top: 6px; left: 6px; font-size: 12px; padding: 2px 7px; border-radius: 6px; background: rgba(178,58,43,.9); color: #fff; }
+.img-sum { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: #fff; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.img-sum.wait { background: #faf8f4; color: var(--muted); flex-direction: column; align-items: flex-start; gap: 4px; }
+.img-sum.wait b { color: var(--ink, #222); }
+.img-sum .bar { flex: 1 1 100%; height: 8px; border-radius: 4px; background: #ece7df; overflow: hidden; }
+.img-sum .bar i { display: block; height: 100%; background: #c98a2b; }
+.img-sum.full .bar i { background: #2e8b57; }
+.img-sum.full b { color: #2e7d4f; }
+.img-sum .miss-nums { flex: 1 1 100%; color: var(--err); font-size: 14px; }
+.img-sum .miss-nums small { color: var(--muted); }
+.img-sum .only-miss { font-size: 14px; cursor: pointer; }
+.tile .okbadge { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: #2e8b57; color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.tile .regen + .vbadge + .okbadge, .tile .regen ~ .okbadge { right: 52px; }
+.tile.miss .ph { background-color: #f3efe9; color: var(--muted); border-bottom: 1px dashed #d8cfc2; }

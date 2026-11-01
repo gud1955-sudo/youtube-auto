@@ -758,23 +758,48 @@ function renderGrid() {
     g.append(el("p", { class: "empty" }, state.images.size + state.imageOrder.length ? `사진 ${state.images.size + state.imageOrder.length}장 들어옴 — 대본을 넣으면 장면별로 보여줍니다.` : "대본을 넣으면 장면별 사진 칸이 생깁니다."));
     st.textContent = ""; return;
   }
-  let miss = 0;
-  state.scenes.forEach((sc, i) => {
-    const f = imageFor(sc.num, i);
-    const nv = state.videos.get(sc.num)?.length || 0;
-    if (!f && !nv) miss++;
+  const info = state.scenes.map((sc, i) => ({ sc, i, f: imageFor(sc.num, i), nv: state.videos.get(sc.num)?.length || 0 }));
+  const missList = info.filter((x) => !x.f && !x.nv);
+  const total = info.length, have = total - missList.length;
+  const nVid = info.reduce((a, x) => a + x.nv, 0);
+
+  // 사진이 하나도 없으면 빈 칸을 늘어놓지 않고 안내만
+  if (!have) {
+    g.append(el("div", { class: "img-sum wait" },
+      el("b", {}, `장면 ${total}개 · 사진 아직 없음`),
+      el("span", {}, "위 칸에 사진을 넣으면 장면마다 제대로 들어갔는지 여기서 바로 확인됩니다.")));
+    st.textContent = ""; st.className = "state"; return;
+  }
+
+  // 요약 막대
+  const pct = Math.round((have / total) * 100);
+  const sum = el("div", { class: "img-sum " + (missList.length ? "part" : "full") },
+    el("div", { class: "bar" }, el("i", { style: `width:${pct}%` })),
+    el("b", {}, missList.length ? `장면 ${total}개 중 ${have}개 사진 들어감` : `✓ 장면 ${total}개 모두 사진 들어감`),
+    nVid ? el("span", {}, ` · 🎬 영상 ${nVid}개`) : null);
+  if (missList.length) {
+    const nums = missList.slice(0, 30).map((x) => pad3(x.sc.num)).join(", ") + (missList.length > 30 ? ` 외 ${missList.length - 30}개` : "");
+    sum.append(el("div", { class: "miss-nums" }, `빠진 번호: ${nums}`, el("small", {}, " — 빈 장면은 바로 앞 사진이 이어서 나옵니다")));
+    const only = el("label", { class: "only-miss" }, el("input", { type: "checkbox", checked: !!state.onlyMiss, onchange: (e) => { state.onlyMiss = e.target.checked; renderGrid(); } }), " 빠진 장면만 보기");
+    sum.append(only);
+  }
+  g.append(sum);
+
+  const list = missList.length && state.onlyMiss ? missList : info;
+  for (const { sc, f, nv } of list) {
     const why = state.gen?.failed?.get("S" + sc.num);
-    const ph = el("div", { class: "ph" }, f ? "" : nv ? "🎬 영상" : why ? "생성 실패" : "사진 없음");
+    const ph = el("div", { class: "ph" }, f ? "" : nv ? "🎬 영상" : why ? "생성 실패" : "비어 있음");
     if (f) ph.style.backgroundImage = `url("${thumbURL(f)}")`;
     if (why) ph.title = why;
     const canRegen = state.gen?.scenes?.some((x) => x.num === sc.num);
     const regen = canRegen ? el("button", { class: "regen", title: "이 장면 사진 다시 만들기", onclick: (e) => { e.stopPropagation(); e.target.disabled = true; e.target.textContent = "…"; regenScene(sc.num); } }, "다시") : null;
     const vbadge = nv ? el("span", { class: "vbadge", title: "이 장면 앞부분에 영상 클립이 먼저 나오고, 남는 시간에 사진이 나옵니다" }, `🎬 영상 ${nv}개`) : null;
-    g.append(el("div", { class: "tile" + (f || nv ? "" : " miss") }, ph, regen, vbadge,
-      el("div", { class: "cap" }, el("b", {}, pad3(sc.num)), sc.chapter ? `· ${sc.chapter}` : "", el("span", {}, sc.lines[0].text))));
-  });
-  if (miss) { st.textContent = `${miss}장 비어 있음 (앞 사진을 이어서 씀)`; st.className = "state warn"; }
-  else { st.textContent = "✓ 모든 장면에 사진 있음"; st.className = "state ok"; }
+    const ok = f ? el("span", { class: "okbadge", title: f.name }, "✓") : null;
+    g.append(el("div", { class: "tile" + (f || nv ? "" : " miss") }, ph, regen, vbadge, ok,
+      el("div", { class: "cap" }, el("b", {}, pad3(sc.num)), sc.chapter ? `· ${sc.chapter}` : "", el("span", {}, f ? f.name : sc.lines[0].text))));
+  }
+  if (missList.length) { st.textContent = `${have}/${total} · ${missList.length}개 빠짐`; st.className = "state warn"; }
+  else { st.textContent = `✓ ${total}/${total} 모두 들어감`; st.className = "state ok"; }
 }
 
 // ───────────────────────── 자막 나누기 ─────────────────────────
