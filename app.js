@@ -171,6 +171,7 @@ const state = {
   voices: [],            // [{id, name, gender, age, uses, preview}]
   cast: {},              // 이름 → {voice_id, speed, pitch, emotion}
   images: new Map(),     // 장면번호 → File
+  videos: new Map(),     // 장면번호 → [{part, file}] (영상 클립, 장면 앞부분에 순서대로 재생)
   imageOrder: [],        // 번호 없는 파일들 (순서 배치용)
   building: false, cancel: false,
 };
@@ -697,12 +698,12 @@ async function unzipImages(files) {
     if (typeof JSZip === "undefined") { toast("압축 파일을 열 수 없습니다. 압축을 푼 뒤 사진을 넣어주세요", 6000); continue; }
     toast(`${f.name} 압축 푸는 중…`, 8000);
     const zip = await JSZip.loadAsync(f);
-    const entries = Object.values(zip.files).filter((z) => !z.dir && /\.(png|jpe?g|webp)$/i.test(z.name) && !/__MACOSX/.test(z.name));
+    const entries = Object.values(zip.files).filter((z) => !z.dir && /\.(png|jpe?g|webp|mp4|webm|mov|m4v)$/i.test(z.name) && !/__MACOSX/.test(z.name));
     entries.sort((a, b) => (a.date - b.date) || a.name.localeCompare(b.name, "ko", { numeric: true }));
     for (const z of entries) {
       const blob = await z.async("blob");
       const base = z.name.split("/").pop();
-      const type = /\.png$/i.test(base) ? "image/png" : /\.webp$/i.test(base) ? "image/webp" : "image/jpeg";
+      const type = /\.png$/i.test(base) ? "image/png" : /\.webp$/i.test(base) ? "image/webp" : /\.(mp4|m4v)$/i.test(base) ? "video/mp4" : /\.webm$/i.test(base) ? "video/webm" : /\.mov$/i.test(base) ? "video/quicktime" : "image/jpeg";
       out.push(new File([blob], base, { type, lastModified: z.date ? z.date.getTime() : Date.now() }));
     }
   }
@@ -711,19 +712,34 @@ async function unzipImages(files) {
 
 async function addImages(fileList) {
   const files = await unzipImages([...fileList]);
+  // 영상 클립: 001-1.mp4, 001-2.mp4 처럼 장면 번호(+순서)로 이름 붙인 것
+  const vids = files.filter((f) => f.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(f.name));
+  let vAdded = 0, vSkipped = 0;
+  for (const f of vids) {
+    const m = f.name.match(/^\s*(\d{1,4})(?:\s*[-_]\s*(\d{1,2}))?(?!\d)/);
+    if (!m) { vSkipped++; continue; }
+    const num = +m[1], part = m[2] ? +m[2] : 0;
+    const list = (state.videos.get(num) || []).filter((x) => x.part !== part);
+    list.push({ part, file: f }); list.sort((a, b) => a.part - b.part);
+    state.videos.set(num, list); vAdded++;
+  }
+  if (vSkipped) toast(`영상 ${vSkipped}개는 이름에 장면 번호가 없어 뺐습니다. 001-1.mp4 처럼 이름을 바꿔 넣어주세요`, 7000);
   const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(f.name));
-  if (!imgs.length) return toast("사진 파일이 아닙니다");
+  if (!imgs.length) {
+    if (vAdded) { toast(`영상 클립 ${vAdded}개 추가`); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); return; }
+    return toast("사진·영상 파일이 아닙니다");
+  }
   // 파일 이름이 숫자로 시작하면(001.png, 12_장면.jpg) 그 번호의 장면에 넣고,
   // 아니면(Flow 다운로드 이름 등) 다운로드한 순서대로 장면에 넣는다
   const lead = (f) => f.name.match(/^\s*(\d{1,4})(?!\d)/);
   const numbered = imgs.filter(lead);
   if (numbered.length >= imgs.length * 0.8) {
     for (const f of imgs) { const m = lead(f); if (m) state.images.set(+m[1], f); else state.imageOrder.push(f); }
-    toast(`사진 ${imgs.length}장 추가 (파일 이름 번호대로)`);
+    toast(`사진 ${imgs.length}장${vAdded ? ` · 영상 ${vAdded}개` : ""} 추가 (파일 이름 번호대로)`);
   } else {
     imgs.sort((a, b) => (a.lastModified - b.lastModified) || a.name.localeCompare(b.name, "ko", { numeric: true }));
     state.imageOrder.push(...imgs);
-    toast(`사진 ${imgs.length}장 추가 (다운로드한 순서대로)`, 4500);
+    toast(`사진 ${imgs.length}장${vAdded ? ` · 영상 ${vAdded}개` : ""} 추가 (다운로드한 순서대로)`, 4500);
   }
   if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid();
 }
@@ -745,14 +761,16 @@ function renderGrid() {
   let miss = 0;
   state.scenes.forEach((sc, i) => {
     const f = imageFor(sc.num, i);
-    if (!f) miss++;
+    const nv = state.videos.get(sc.num)?.length || 0;
+    if (!f && !nv) miss++;
     const why = state.gen?.failed?.get("S" + sc.num);
-    const ph = el("div", { class: "ph" }, f ? "" : why ? "생성 실패" : "사진 없음");
+    const ph = el("div", { class: "ph" }, f ? "" : nv ? "🎬 영상" : why ? "생성 실패" : "사진 없음");
     if (f) ph.style.backgroundImage = `url("${thumbURL(f)}")`;
     if (why) ph.title = why;
     const canRegen = state.gen?.scenes?.some((x) => x.num === sc.num);
     const regen = canRegen ? el("button", { class: "regen", title: "이 장면 사진 다시 만들기", onclick: (e) => { e.stopPropagation(); e.target.disabled = true; e.target.textContent = "…"; regenScene(sc.num); } }, "다시") : null;
-    g.append(el("div", { class: "tile" + (f ? "" : " miss") }, ph, regen,
+    const vbadge = nv ? el("span", { class: "vbadge", title: "이 장면 앞부분에 영상 클립이 먼저 나오고, 남는 시간에 사진이 나옵니다" }, `🎬 영상 ${nv}개`) : null;
+    g.append(el("div", { class: "tile" + (f || nv ? "" : " miss") }, ph, regen, vbadge,
       el("div", { class: "cap" }, el("b", {}, pad3(sc.num)), sc.chapter ? `· ${sc.chapter}` : "", el("span", {}, sc.lines[0].text))));
   });
   if (miss) { st.textContent = `${miss}장 비어 있음 (앞 사진을 이어서 씀)`; st.className = "state warn"; }
@@ -1104,6 +1122,31 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
   const bmpCache = new Map(); // 장면 index → Promise<bitmap>
   const getBmp = (i) => { if (i >= scenes.length) return null; if (!bmpCache.has(i)) bmpCache.set(i, loadBitmap(files[i], zoom)); return bmpCache.get(i); };
 
+  // 장면별 영상 클립 (있으면 장면 앞부분에 순서대로, 남는 시간엔 그 장면 사진 또는 마지막 화면 유지)
+  const ownImage = scenes.map((sc) => state.images.has(sc.num) || !!imageFor(sc.num, state.scenes.indexOf(sc)));
+  const vidCache = new Map(); // 장면 index → Promise<[{el, dur, url}]>
+  const loadVids = (i) => {
+    if (i >= scenes.length) return null;
+    if (!vidCache.has(i)) {
+      const list = state.videos.get(scenes[i].num) || [];
+      vidCache.set(i, Promise.all(list.map(({ file }) => new Promise((res) => {
+        const v = document.createElement("video");
+        v.muted = true; v.playsInline = true; v.preload = "auto";
+        const url = URL.createObjectURL(file);
+        v.onloadeddata = () => res({ el: v, dur: v.duration || 0, url });
+        v.onerror = () => { toast(`영상 ${file.name} 을 열 수 없습니다 (mp4 권장)`, 6000); res(null); };
+        v.src = url;
+      }))).then((a) => a.filter(Boolean)));
+    }
+    return vidCache.get(i);
+  };
+  const seekTo = (v, time) => new Promise((res) => {
+    if (Math.abs(v.currentTime - time) < 0.002 && v.readyState >= 2) return res();
+    let done = false; const fin = () => { if (!done) { done = true; v.removeEventListener("seeked", fin); res(); } };
+    v.addEventListener("seeked", fin); v.currentTime = time; setTimeout(fin, 3000);
+  });
+  let vids = await loadVids(0); loadVids(1);
+
   const reader = tl.reader || new AudioReader(tl.segs, mock);
   const totalFrames = Math.max(1, Math.round(tl.total * fps));
   let si = 0, ci = 0, bmp = await getBmp(0); getBmp(1);
@@ -1131,12 +1174,30 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
       const old = bmpCache.get(si); bmpCache.delete(si);
       si++; bmp = await getBmp(si); getBmp(si + 1);
       old?.then((b) => { if (b && b !== bmp) b.close?.(); });
+      const oldV = vidCache.get(si - 1); vidCache.delete(si - 1);
+      oldV?.then((a) => a.forEach((x) => { x.el.removeAttribute("src"); x.el.load(); URL.revokeObjectURL(x.url); }));
+      vids = await loadVids(si); loadVids(si + 1);
     }
     // 그림
     ctx.fillStyle = "#101418"; ctx.fillRect(0, 0, W, H);
-    if (bmp) {
-      const sc = scenes[si];
-      const p = Math.min(1, Math.max(0, (t - sc.start) / Math.max(0.001, sc.end - sc.start)));
+    const scNow = scenes[si], ts = t - scNow.start;
+    const vTotal = vids.reduce((a, x) => a + x.dur, 0);
+    let drewVideo = false;
+    if (vids.length && (ts < vTotal || !ownImage[si])) {
+      // 영상 구간: 해당 클립의 해당 시점 화면 (영상이 끝났고 사진이 없으면 마지막 화면 유지)
+      let k = 0, acc = 0;
+      while (k < vids.length - 1 && ts >= acc + vids[k].dur) { acc += vids[k].dur; k++; }
+      const v = vids[k].el, at = Math.min(Math.max(0, ts - acc), Math.max(0, vids[k].dur - 0.05));
+      await seekTo(v, at);
+      const s = Math.max(W / v.videoWidth, H / v.videoHeight);
+      const dw = v.videoWidth * s, dh = v.videoHeight * s;
+      ctx.drawImage(v, (W - dw) / 2, (H - dh) / 2, dw, dh);
+      drewVideo = true;
+    }
+    if (bmp && !drewVideo) {
+      const sc = scNow;
+      const st = sc.start + (vids.length ? vTotal : 0);
+      const p = Math.min(1, Math.max(0, (t - st) / Math.max(0.001, sc.end - st)));
       const z = !useZoom ? 1 : (si % 2 === 0 ? 1 + (zoom - 1) * p : zoom - (zoom - 1) * p);
       const s = Math.max(W / bmp.width, H / bmp.height) * z;
       const dw = bmp.width * s, dh = bmp.height * s;
@@ -1210,7 +1271,7 @@ async function init() {
   state.cast = await store.get("cast", {});
   state.single = await store.get("single", true);
   state.mode = await store.get("mode", "google");
-  if (state.mode === "typecast") state.mode = "google"; // 타입캐스트 방식은 화면에서 뺌
+  if (state.mode !== "google") state.mode = "google"; // 브루·타입캐스트 방식은 화면에서 뺌 (구글 음성만)
   state.single = true;
   document.querySelectorAll("input[name=mode]").forEach((r) => (r.onchange = () => r.checked && setMode(r.value)));
   const vd = $("#vrew-drop");
@@ -1251,7 +1312,7 @@ async function init() {
   drop.addEventListener("drop", (e) => addImages(e.dataTransfer.files));
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => { e.preventDefault(); if (e.target.closest?.("#drop, #vrew-drop")) return; if (e.dataTransfer?.files?.length) addImages(e.dataTransfer.files); });
-  $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); };
+  $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; state.videos.clear(); for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); };
 
   $("#build").onclick = build;
   $("#cancel").onclick = () => { state.cancel = true; setStage("중지하는 중…"); };

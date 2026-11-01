@@ -134,3 +134,4 @@ select.gvoice { flex: 1; min-width: 260px; }
 .picks .hint { margin: 0 4px 0 0; }
 .btn.pick { padding: 7px 12px; font-size: 14px; background: var(--soft); color: var(--ink); border: 1px solid var(--line); }
 .btn.pick.on { border-color: var(--accent); background: #fbeeea; }
+.vbadge { position: absolute; top: 6px; left: 6px; font-size: 12px; padding: 2px 7px; border-radius: 6px; background: rgba(178,58,43,.9); color: #fff; }

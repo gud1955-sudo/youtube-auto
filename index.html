@@ -13,7 +13,7 @@
 
 <main>
   <!-- 음성 방식 -->
-  <section class="card modes" id="sec-mode">
+  <section class="card modes" id="sec-mode" hidden>
     <div class="card-head"><h2>음성은 어디서 만드나요?</h2></div>
     <label class="mode"><input type="radio" name="mode" value="google"> <span><b>제작기에서 바로 만들기 (구글 음성)</b><small>대본만 넣으면 음성·자막까지 자동 · 매달 100만 자 무료</small></span></label>
     <label class="mode"><input type="radio" name="mode" value="vrew"> <span><b>브루에서 만든 음성 파일 쓰기</b><small>브루에서 송세아로 만든 음성(mp3) + 자막(srt)을 넣음</small></span></label>
@@ -47,7 +47,7 @@
   </section>
 
   <!-- 브루 음성 -->
-  <section class="card" id="sec-vrew" data-mode="vrew">
+  <section class="card" id="sec-vrew" data-mode="vrew" hidden>
     <div class="card-head"><span class="num">1</span><h2>브루 음성 · 자막 넣기</h2><span class="state" id="vrew-state"></span></div>
     <div class="help">
       <b>브루에서 할 일</b>
@@ -124,9 +124,9 @@
   <section class="card" id="sec-images">
     <div class="card-head"><span class="num">4</span><h2>사진 넣기</h2><span class="state" id="img-state"></span></div>
     <label id="drop" class="drop">
-      <input type="file" id="img-input" accept="image/*,.zip" multiple hidden>
-      <strong>사진(또는 압축 파일 zip)을 여기로 한꺼번에 끌어다 놓으세요</strong>
-      <span>또는 클릭해서 선택 · 파일 이름이 001, 002…면 그 번호대로, 아니면 다운로드한 순서대로 들어갑니다</span>
+      <input type="file" id="img-input" accept="image/*,video/*,.zip" multiple hidden>
+      <strong>사진·영상(또는 압축 파일 zip)을 여기로 한꺼번에 끌어다 놓으세요</strong>
+      <span>또는 클릭해서 선택 · 사진 이름이 001, 002…면 그 번호대로 · 영상 클립은 001-1.mp4, 001-2.mp4 처럼 이름을 붙이면 그 장면 앞부분에 순서대로 나옵니다</span>
     </label>
     <div class="row tools"><button class="btn ghost" id="img-clear">사진 모두 빼기</button></div>
     <div id="grid" class="grid"></div>
