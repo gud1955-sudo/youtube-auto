@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>인생이야기 영상 제작기</title>
-<link rel="stylesheet" href="app.css?v=20">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css?v=22">
 </head>
 <body>
 <header class="top">
@@ -130,6 +132,25 @@
     </label>
     <div class="row tools"><button class="btn ghost" id="img-clear">사진 모두 빼기</button></div>
     <div id="grid" class="grid"></div>
+    <div class="sub-box" id="sub-box">
+      <div class="card-head" style="margin:0 0 8px"><h2 style="font-size:17px">구독·좋아요 영상 <small>(한 번 넣으면 계속 저장)</small></h2><span class="state" id="sub-state"></span></div>
+      <p class="hint" style="margin:0 0 10px">대본에서 <b>"구독과 좋아요…"</b> 멘트가 나오는 순간 자동으로 이 영상이 나옵니다. 매번 넣을 필요 없이 이 브라우저에 저장됩니다.</p>
+      <div class="sub-row">
+        <label class="drop small" id="sub-drop">
+          <input type="file" id="sub-input" accept="video/*" hidden>
+          <strong>영상 파일을 끌어다 놓거나 클릭</strong><span>지금 저장된 것: <b id="sub-name">없음</b></span>
+        </label>
+        <video id="sub-preview" muted playsinline controls hidden></video>
+      </div>
+      <div class="row" id="sub-opts" hidden style="margin-top:10px;gap:14px;flex-wrap:wrap;align-items:center">
+        <label><input type="checkbox" id="sub-hide" checked> 영상이 나오는 동안 제작기 자막 숨기기 (영상에 자막이 이미 있으므로)</label>
+        <details class="more"><summary>기타 설정</summary>
+          <label>보여주는 방식 <select id="sub-mode"><option value="full">화면 전체로</option><option value="key">사진 위에 겹치기 (초록 배경 지움)</option></select></label>
+          <label><input type="checkbox" id="sub-sound"> 영상 자체 소리도 넣기</label>
+        </details>
+        <button class="btn ghost" id="sub-del">빼기</button>
+      </div>
+    </div>
   </section>
 
   <!-- 5. 만들기 -->
@@ -141,7 +162,7 @@
       <label><input type="checkbox" id="opt-sub" checked> 자막 넣기</label>
       <label><input type="checkbox" id="opt-zoom" checked> 사진 천천히 확대·축소 효과</label>
       <label>자막 크기
-        <select id="opt-subsize"><option value="60">보통</option><option value="70" selected>크게</option><option value="80">아주 크게</option></select>
+        <select id="opt-subsize"><option value="66">보통</option><option value="76">크게</option><option value="86" selected>구독 영상과 같게</option></select>
       </label>
     </div>
     <div class="row">
@@ -169,7 +190,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js"></script>
 <script src="lib/jszip.min.js"></script>
-<script src="app.js?v=20"></script>
+<script src="app.js?v=23"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=4"></script>
 </body>

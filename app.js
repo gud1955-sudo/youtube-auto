@@ -172,6 +172,7 @@ const state = {
   cast: {},              // 이름 → {voice_id, speed, pitch, emotion}
   images: new Map(),     // 장면번호 → File
   videos: new Map(),     // 장면번호 → [{part, file}] (영상 클립, 장면 앞부분에 순서대로 재생)
+  sub: null,             // 구독·좋아요 영상 {file, mode: "full"|"key", sound: bool} — 브라우저에 계속 저장
   imageOrder: [],        // 번호 없는 파일들 (순서 배치용)
   building: false, cancel: false,
 };
@@ -459,17 +460,13 @@ function renderSummary() {
   const e = estimate(state.scenes);
   const chapters = state.scenes.filter((s) => s.chapter).length;
   const k = (big, small) => el("div", { class: "k" }, el("b", {}, big), el("span", {}, small));
-  box.append(
-    k(`${state.scenes.length}개`, "장면 (= 필요한 사진 수)"),
+  box.append(...[
     k(`약 ${clock(e.secs)}`, "예상 영상 길이 (±15%)"),
     k(`${e.chars.toLocaleString()}자`, state.mode === "google" ? "글자 수 (무료 매달 100만 자)" : "글자 수 ≈ 크레딧"),
-    k(`${state.speakers.length}명`, "목소리 (내레이션 포함)"),
-    k(`${chapters}개`, "챕터"),
-  );
+    chapters ? k(`${chapters}개`, "챕터") : null,
+  ].filter(Boolean));
   if (state.auto) {
-    box.append(el("div", { class: "msgs" }, photoCount()
-      ? `장면 표시가 없어서 사진 ${photoCount()}장에 맞춰 대본을 ${state.scenes.length}개 장면으로 자동으로 나눴습니다.`
-      : `장면 표시가 없어서 약 1분마다 사진이 바뀌도록 ${state.scenes.length}개 장면으로 나눴습니다. 사진을 넣으면 사진 장수에 맞춰 다시 나눕니다.`));
+    box.append(el("div", { class: "msgs" }, "사진을 넣으면 넣은 장수에 맞춰 대본을 고르게 나눠 사진이 바뀝니다."));
   }
   if (state.problems.length) {
     box.append(el("div", { class: "msgs" }, ...state.problems.slice(0, 8).map((p) => el("div", { class: p.t === "err" ? "msg-err" : "msg-warn" }, "· " + p.m))));
@@ -766,7 +763,7 @@ function renderGrid() {
   // 사진이 하나도 없으면 빈 칸을 늘어놓지 않고 안내만
   if (!have) {
     g.append(el("div", { class: "img-sum wait" },
-      el("b", {}, `장면 ${total}개 · 사진 아직 없음`),
+      el("b", {}, state.auto ? "사진 아직 없음" : `장면 ${total}개 · 사진 아직 없음`),
       el("span", {}, "위 칸에 사진을 넣으면 장면마다 제대로 들어갔는지 여기서 바로 확인됩니다.")));
     st.textContent = ""; st.className = "state"; return;
   }
@@ -775,7 +772,7 @@ function renderGrid() {
   const pct = Math.round((have / total) * 100);
   const sum = el("div", { class: "img-sum " + (missList.length ? "part" : "full") },
     el("div", { class: "bar" }, el("i", { style: `width:${pct}%` })),
-    el("b", {}, missList.length ? `장면 ${total}개 중 ${have}개 사진 들어감` : `✓ 장면 ${total}개 모두 사진 들어감`),
+    el("b", {}, state.auto ? `✓ 사진 ${have}장 들어감 — 대본을 ${have}구간으로 고르게 나눠 넣습니다` : missList.length ? `장면 ${total}개 중 ${have}개 사진 들어감` : `✓ 장면 ${total}개 모두 사진 들어감`),
     nVid ? el("span", {}, ` · 🎬 영상 ${nVid}개`) : null);
   if (missList.length) {
     const nums = missList.slice(0, 30).map((x) => pad3(x.sc.num)).join(", ") + (missList.length > 30 ? ` 외 ${missList.length - 30}개` : "");
@@ -800,6 +797,38 @@ function renderGrid() {
   }
   if (missList.length) { st.textContent = `${have}/${total} · ${missList.length}개 빠짐`; st.className = "state warn"; }
   else { st.textContent = `✓ ${total}/${total} 모두 들어감`; st.className = "state ok"; }
+}
+
+// ───────────────────────── 구독·좋아요 영상 (한 번 넣으면 브라우저에 계속 저장) ─────────────────────────
+async function initSub() {
+  const box = $("#sub-box"); if (!box) return;
+  try { const r = await idb.get("subVideo"); if (r?.blob) state.sub = { file: new File([r.blob], r.name || "구독좋아요.mp4", { type: r.blob.type }), mode: r.mode || "full", sound: !!r.sound, hideSubs: r.hideSubs !== false }; } catch { /* 없음 */ }
+  const save = () => state.sub && idb.put("subVideo", { blob: state.sub.file, name: state.sub.file.name, mode: state.sub.mode, sound: state.sub.sound, hideSubs: state.sub.hideSubs }).catch(() => toast("저장 공간이 부족해 다음에는 다시 넣어야 할 수 있습니다"));
+  const set = (f) => {
+    if (!f || !(f.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(f.name))) return toast("영상 파일(mp4)을 넣어 주세요");
+    state.sub = { file: f, mode: state.sub?.mode || "full", sound: state.sub?.sound ?? false, hideSubs: state.sub?.hideSubs ?? true }; save(); draw(); toast("구독·좋아요 영상 저장됨 — 다음부터 자동으로 들어갑니다");
+  };
+  let url = null;
+  const draw = () => {
+    const has = !!state.sub;
+    $("#sub-name").textContent = has ? state.sub.file.name : "없음";
+    $("#sub-state").textContent = has ? "✓ 저장됨" : ""; $("#sub-state").className = "state" + (has ? " ok" : "");
+    $("#sub-opts").hidden = !has; $("#sub-del").hidden = !has;
+    const pv = $("#sub-preview");
+    if (url) URL.revokeObjectURL(url); url = null;
+    if (has) { url = URL.createObjectURL(state.sub.file); pv.src = url; pv.hidden = false; $("#sub-mode").value = state.sub.mode; $("#sub-sound").checked = state.sub.sound; $("#sub-hide").checked = state.sub.hideSubs; }
+    else { pv.removeAttribute("src"); pv.hidden = true; }
+  };
+  $("#sub-input").onchange = (e) => { set(e.target.files[0]); e.target.value = ""; };
+  const drop = $("#sub-drop");
+  drop.ondragover = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("over"); set(e.dataTransfer.files[0]); };
+  $("#sub-mode").onchange = (e) => { state.sub.mode = e.target.value; save(); };
+  $("#sub-sound").onchange = (e) => { state.sub.sound = e.target.checked; save(); };
+  $("#sub-hide").onchange = (e) => { state.sub.hideSubs = e.target.checked; save(); };
+  $("#sub-del").onclick = async () => { state.sub = null; try { await idb.tx("readwrite", (s) => s.delete("subVideo")); } catch { /* 무시 */ } draw(); };
+  draw();
 }
 
 // ───────────────────────── 자막 나누기 ─────────────────────────
@@ -849,6 +878,8 @@ async function build() {
   const previewOnly = $("#opt-preview").checked;
   const previewN = Math.max(1, +$("#opt-preview-n").value || 3);
   const useSub = $("#opt-sub").checked, useZoom = $("#opt-zoom").checked, subSize = +$("#opt-subsize").value;
+  CFG.lineMax = lineMaxFor(subSize);
+  try { await document.fonts.load(`${subSize}px "Jua"`, "가나다"); } catch { /* 기본 글꼴 */ }
 
   // 확인
   const vrew = state.mode === "vrew";
@@ -1104,19 +1135,30 @@ async function loadBitmap(file, zoom) {
   return bmp;
 }
 
+const SUB_FONT = `"Jua", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+// 자막 한 줄 글자 수 (글자 크기에 맞춰 화면 폭 안에 들어가게)
+const lineMaxFor = (size) => Math.max(14, Math.min(26, Math.floor((CFG.W - 240) / (size * 0.95))));
 function drawSubtitle(ctx, cue, size) {
   const { W, H } = CFG;
-  ctx.font = `bold ${size}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", "Noto Sans CJK KR", sans-serif`;
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  const lh = Math.round(size * 1.32);
-  const widths = cue.lines.map((l) => ctx.measureText(l).width);
-  const bw = Math.max(...widths) + size * 0.9, bh = lh * cue.lines.length + size * 0.45;
-  const bx = (W - bw) / 2, by = H - CFG.subMargin - bh;
-  ctx.fillStyle = "rgba(0,0,0,0.58)";
-  const r = size * 0.22;
-  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, r) : ctx.rect(bx, by, bw, bh); ctx.fill();
+  const maxW = W - 200;
+  ctx.font = `${size}px ${SUB_FONT}`;
+  let fs = size;
+  const wMax = Math.max(...cue.lines.map((l) => ctx.measureText(l).width));
+  if (wMax > maxW) { fs = Math.floor(size * maxW / wMax); ctx.font = `${fs}px ${SUB_FONT}`; }
+  const lh = Math.round(fs * 1.2);
+  // 화면 폭 가득한 반투명 회색 띠 (구독·좋아요 영상과 같은 모양)
+  const bh = lh * cue.lines.length + fs * 0.55;
+  const bx = 40, bw = W - 80, by = H - 32 - bh;
+  ctx.fillStyle = "rgba(150,150,150,0.55)";
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.lineJoin = "round"; ctx.miterLimit = 2;
+  ctx.lineWidth = Math.max(6, fs * 0.16); ctx.strokeStyle = "#000";
   ctx.fillStyle = cue.dialog ? CFG.diaColor : CFG.narColor;
-  cue.lines.forEach((l, i) => ctx.fillText(l, W / 2, by + size * 0.225 + lh * (i + 0.5)));
+  cue.lines.forEach((l, i) => {
+    const y = by + fs * 0.3 + lh * (i + 0.5);
+    ctx.strokeText(l, W / 2, y); ctx.fillText(l, W / 2, y);
+  });
 }
 
 async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }) {
@@ -1173,6 +1215,30 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
   let vids = await loadVids(0); loadVids(1);
 
   const reader = tl.reader || new AudioReader(tl.segs, mock);
+
+  // 구독·좋아요 영상: 대본에서 '구독'이 처음 나오는 자막 시점에 재생
+  let sub = null;
+  if (state.sub?.file) {
+    const cue = cues.find((c) => /구독/.test(c.lines.join(" ")));
+    if (!cue) toast("대본에 '구독' 문장이 없어 구독·좋아요 영상은 넣지 않았습니다", 6000);
+    else {
+      const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.preload = "auto";
+      const url = URL.createObjectURL(state.sub.file);
+      const ok = await new Promise((res) => { v.onloadeddata = () => res(true); v.onerror = () => res(false); v.src = url; });
+      if (!ok) toast("구독·좋아요 영상을 열 수 없습니다 (mp4 권장)", 6000);
+      else {
+        sub = { el: v, url, start: cue.start, dur: v.duration || 0, key: state.sub.mode === "key", pcm: null, hideSubs: state.sub.hideSubs !== false };
+        if (state.sub.sound && !mock) { try { sub.pcm = await decodeAt(await state.sub.file.arrayBuffer(), sampleRate); } catch { /* 소리 없는 영상 */ } }
+        if (sub.key) { sub.cv = document.createElement("canvas"); sub.cv.width = W; sub.cv.height = H; sub.cx = sub.cv.getContext("2d", { willReadFrequently: true }); }
+      }
+    }
+  }
+  const mixSub = (pcm, at) => {
+    if (!sub?.pcm) return pcm;
+    const s0 = Math.round(sub.start * sampleRate);
+    for (let i = 0; i < pcm.length; i++) { const k = at + i - s0; if (k >= 0 && k < sub.pcm.length) pcm[i] = Math.max(-1, Math.min(1, pcm[i] + sub.pcm[k] * 0.8)); }
+    return pcm;
+  };
   const totalFrames = Math.max(1, Math.round(tl.total * fps));
   let si = 0, ci = 0, bmp = await getBmp(0); getBmp(1);
   let audioWritten = 0;
@@ -1188,7 +1254,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
       const upto = Math.min(tl.totalSamples, Math.round((f / fps + 1) * sampleRate));
       const n = upto - audioWritten;
       if (n > 0) {
-        const pcm = await reader.read(n);
+        const pcm = mixSub(await reader.read(n), audioWritten);
         const ad = new AudioData({ format: "f32-planar", sampleRate, numberOfFrames: n, numberOfChannels: 1, timestamp: Math.round(audioWritten / sampleRate * 1e6), data: pcm });
         aenc.encode(ad); ad.close(); audioWritten = upto;
         await waitQueue(aenc, 4);
@@ -1228,8 +1294,25 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
       const dw = bmp.width * s, dh = bmp.height * s;
       ctx.drawImage(bmp, (W - dw) / 2, (H - dh) / 2, dw, dh);
     }
+    const subOn = sub && t >= sub.start && t < sub.start + sub.dur;
+    if (subOn) {
+      const v = sub.el; await seekTo(v, Math.min(t - sub.start, Math.max(0, sub.dur - 0.05)));
+      const s = Math.max(W / v.videoWidth, H / v.videoHeight), dw = v.videoWidth * s, dh = v.videoHeight * s;
+      if (!sub.key) ctx.drawImage(v, (W - dw) / 2, (H - dh) / 2, dw, dh);
+      else {
+        // 초록 배경 지우고 사진 위에 겹치기
+        sub.cx.clearRect(0, 0, W, H); sub.cx.drawImage(v, (W - dw) / 2, (H - dh) / 2, dw, dh);
+        const im = sub.cx.getImageData(0, 0, W, H), d = im.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i], g = d[i + 1], b = d[i + 2], m = g - Math.max(r, b);
+          if (m > 60) d[i + 3] = 0;
+          else if (m > 25) { d[i + 3] = Math.round(255 * (60 - m) / 35); d[i + 1] = Math.max(r, b); }
+        }
+        sub.cx.putImageData(im, 0, 0); ctx.drawImage(sub.cv, 0, 0);
+      }
+    }
     while (ci < cues.length && cues[ci].end <= t) ci++;
-    if (ci < cues.length && cues[ci].start <= t) drawSubtitle(ctx, cues[ci], subSize);
+    if (ci < cues.length && cues[ci].start <= t && !(subOn && sub.hideSubs)) drawSubtitle(ctx, cues[ci], subSize);
 
     const frame = new VideoFrame(canvas, { timestamp: Math.round(f * 1e6 / fps), duration: Math.round(1e6 / fps) });
     venc.encode(frame, { keyFrame: f % (fps * 2) === 0 }); frame.close();
@@ -1244,7 +1327,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
   }
   // 남은 음성
   if (audioWritten < tl.totalSamples) {
-    const n = tl.totalSamples - audioWritten; const pcm = await reader.read(n);
+    const n = tl.totalSamples - audioWritten; const pcm = mixSub(await reader.read(n), audioWritten);
     const ad = new AudioData({ format: "f32-planar", sampleRate, numberOfFrames: n, numberOfChannels: 1, timestamp: Math.round(audioWritten / sampleRate * 1e6), data: pcm });
     aenc.encode(ad); ad.close();
   }
@@ -1337,6 +1420,7 @@ async function init() {
   drop.addEventListener("drop", (e) => addImages(e.dataTransfer.files));
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => { e.preventDefault(); if (e.target.closest?.("#drop, #vrew-drop")) return; if (e.dataTransfer?.files?.length) addImages(e.dataTransfer.files); });
+  initSub();
   $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; state.videos.clear(); for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); };
 
   $("#build").onclick = build;
