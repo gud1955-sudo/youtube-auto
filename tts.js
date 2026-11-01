@@ -39,6 +39,8 @@ async function gFetch(path, opts = {}, tries = 5) {
     if (r.status === 403) {
       if (/billing/i.test(msg)) throw new ApiError("구글 클라우드 결제 계정이 연결되지 않았습니다. 사용 안내의 '결제 계정 연결'을 확인하세요.", true);
       if (/has not been used|is disabled|SERVICE_DISABLED/i.test(msg)) throw new ApiError("구글 클라우드에서 'Cloud Text-to-Speech API'가 켜져 있지 않습니다. 사용 안내의 'API 사용 설정'을 확인하세요.", true);
+      if (/referer|referrer/i.test(msg)) throw new ApiError("API 키의 '웹사이트 제한'에 이 사이트가 빠져 있습니다. 구글 클라우드 → 사용자 인증 정보 → 키 → 웹사이트 제한에 gud1955-sudo.github.io/* 를 넣고 저장한 뒤 5분 뒤 다시 시도하세요.", true);
+      if (/Requests to this API .* are blocked|API_KEY_SERVICE_BLOCKED/i.test(msg)) throw new ApiError("API 키의 'API 제한'에 Cloud Text-to-Speech API 가 빠져 있습니다. 구글 클라우드 → 사용자 인증 정보 → 키 → API 제한 → 'Cloud Text-to-Speech API' 를 체크하고 저장한 뒤 5분 뒤 다시 시도하세요.", true);
       throw new ApiError("구글 권한 오류: " + msg, true);
     }
     if (r.status === 400) { const e = new ApiError("구글 음성 요청 오류: " + msg, false); e.status = 400; e.detail = msg; throw e; }
