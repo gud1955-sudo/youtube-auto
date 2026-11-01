@@ -401,8 +401,7 @@ function setMode(m) {
 }
 
 function onScriptChange() {
-  const text = $("#script").value;
-  store.set("script", text);
+  const text = $("#script").value; // 대본은 저장하지 않음 (새로고침하면 비워짐)
   if (state.mode === "vrew") {
     state.problems = [];
     state.auto = false; state.speakers = [];
@@ -1434,7 +1433,7 @@ async function init() {
     if (state.apiKey && !state.voices.length) loadVoices(true);
   };
   const ta = $("#script");
-  ta.value = await store.get("script", "");
+  ta.value = ""; store.set("script", ""); // 새로고침하면 대본은 비움 (다른 설정은 유지)
   let deb; ta.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(onScriptChange, 350); });
   // 파일 여러 개(챕터 1·2·3)를 한꺼번에 고르면 이름 순서대로 이어 붙임
   $("#script-file").onchange = async (e) => {
