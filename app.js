@@ -763,20 +763,18 @@ function renderGrid() {
   // 사진이 하나도 없으면 빈 칸을 늘어놓지 않고 안내만
   if (!have) {
     g.append(el("div", { class: "img-sum wait" },
-      el("b", {}, state.auto ? "사진 아직 없음" : `장면 ${total}개 · 사진 아직 없음`),
+      el("b", {}, "사진 아직 없음"),
       el("span", {}, "위 칸에 사진을 넣으면 장면마다 제대로 들어갔는지 여기서 바로 확인됩니다.")));
     st.textContent = ""; st.className = "state"; return;
   }
 
   // 요약 막대
-  const pct = Math.round((have / total) * 100);
-  const sum = el("div", { class: "img-sum " + (missList.length ? "part" : "full") },
-    el("div", { class: "bar" }, el("i", { style: `width:${pct}%` })),
-    el("b", {}, state.auto ? `✓ 사진 ${have}장 들어감 — 대본을 ${have}구간으로 고르게 나눠 넣습니다` : missList.length ? `장면 ${total}개 중 ${have}개 사진 들어감` : `✓ 장면 ${total}개 모두 사진 들어감`),
+  const sum = el("div", { class: "img-sum full" },
+    el("b", {}, `✓ 사진 ${have}장 들어감`),
     nVid ? el("span", {}, ` · 🎬 영상 ${nVid}개`) : null);
   if (missList.length) {
-    const nums = missList.slice(0, 30).map((x) => pad3(x.sc.num)).join(", ") + (missList.length > 30 ? ` 외 ${missList.length - 30}개` : "");
-    sum.append(el("div", { class: "miss-nums" }, `빠진 번호: ${nums}`, el("small", {}, " — 빈 장면은 바로 앞 사진이 이어서 나옵니다")));
+    const nums = missList.slice(0, 20).map((x) => pad3(x.sc.num)).join(", ") + (missList.length > 20 ? " …" : "");
+    sum.append(el("div", { class: "miss-nums" }, `사진 없는 번호: ${nums}`, el("small", {}, " — 사진이 없는 곳은 바로 앞 사진이 이어서 나옵니다")));
     const only = el("label", { class: "only-miss" }, el("input", { type: "checkbox", checked: !!state.onlyMiss, onchange: (e) => { state.onlyMiss = e.target.checked; renderGrid(); } }), " 빠진 장면만 보기");
     sum.append(only);
   }
@@ -795,8 +793,7 @@ function renderGrid() {
     g.append(el("div", { class: "tile" + (f || nv ? "" : " miss") }, ph, regen, vbadge, ok,
       el("div", { class: "cap" }, el("b", {}, pad3(sc.num)), sc.chapter ? `· ${sc.chapter}` : "", el("span", {}, f ? f.name : sc.lines[0].text))));
   }
-  if (missList.length) { st.textContent = `${have}/${total} · ${missList.length}개 빠짐`; st.className = "state warn"; }
-  else { st.textContent = `✓ ${total}/${total} 모두 들어감`; st.className = "state ok"; }
+  st.textContent = `✓ 사진 ${have}장`; st.className = "state ok";
 }
 
 // ───────────────────────── 구독·좋아요 영상 (한 번 넣으면 브라우저에 계속 저장) ─────────────────────────
