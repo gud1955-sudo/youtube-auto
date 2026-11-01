@@ -1227,11 +1227,40 @@ async function init() {
     toast(state.apiKey ? "API 키를 저장했습니다" : "API 키를 지웠습니다");
     if (state.apiKey && !state.voices.length) loadVoices(true);
   };
+  // 대본: 챕터 3칸 → 숨은 #script 에 이어 붙여서 기존 처리에 넘김
   const ta = $("#script");
-  ta.value = await store.get("script", "");
-  let deb; ta.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(onScriptChange, 350); });
-  $("#script-file").onchange = async (e) => { const f = e.target.files[0]; if (f) { ta.value = await f.text(); onScriptChange(); } e.target.value = ""; };
-  $("#script-clear").onclick = () => { ta.value = ""; onScriptChange(); };
+  const chaps = [1, 2, 3].map((i) => $("#chap-" + i));
+  const combine = () => {
+    ta.value = chaps.map((c) => c.value.trim()).filter(Boolean).join("\n\n");
+    chaps.forEach((c, i) => { const n = c.value.replace(/\s/g, "").length; $("#chap-n-" + (i + 1)).textContent = n ? `${c.value.length.toLocaleString()}자` : ""; store.set("script" + (i + 1), c.value); });
+    onScriptChange();
+  };
+  const saved = await Promise.all([1, 2, 3].map((i) => store.get("script" + i, null)));
+  if (saved.every((v) => v == null)) { const old = await store.get("script", ""); saved[0] = old; }
+  chaps.forEach((c, i) => (c.value = saved[i] || ""));
+  let deb; chaps.forEach((c) => c.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(combine, 350); }));
+  const readTxt = async (f) => { const t = await f.text(); return t.replace(/^\ufeff/, ""); };
+  $("#script-file").onchange = async (e) => {
+    const fs = [...e.target.files].sort((a, b) => a.name.localeCompare(b.name, "ko", { numeric: true })).slice(0, 3);
+    if (e.target.files.length > 3) toast("파일이 3개보다 많아 앞의 3개만 넣었습니다", 5000);
+    for (let i = 0; i < fs.length; i++) chaps[i].value = await readTxt(fs[i]);
+    e.target.value = ""; combine();
+    if (fs.length) toast(fs.map((f, i) => `${i + 1}챕터 ← ${f.name}`).join(" / "), 6000);
+  };
+  document.querySelectorAll(".chap-file").forEach((inp) => (inp.onchange = async (e) => { const f = e.target.files[0]; if (f) { chaps[+inp.dataset.i - 1].value = await readTxt(f); combine(); } e.target.value = ""; }));
+  document.querySelectorAll(".chap-clear").forEach((btn) => (btn.onclick = () => { chaps[+btn.dataset.i - 1].value = ""; combine(); }));
+  $("#script-clear").onclick = () => { if (chaps.some((c) => c.value) && !confirm("세 챕터 대본을 모두 비울까요?")) return; chaps.forEach((c) => (c.value = "")); combine(); };
+  document.querySelectorAll(".chap").forEach((box) => {
+    box.addEventListener("dragover", (e) => { e.preventDefault(); box.classList.add("over"); });
+    box.addEventListener("dragleave", () => box.classList.remove("over"));
+    box.addEventListener("drop", async (e) => {
+      box.classList.remove("over");
+      const f = [...(e.dataTransfer?.files || [])].find((x) => /\.txt$/i.test(x.name) || x.type.startsWith("text/"));
+      if (!f) return; e.preventDefault(); e.stopPropagation();
+      chaps[+box.dataset.i - 1].value = await readTxt(f); combine();
+    });
+  });
+  combine();
   $("#format-help-btn").onclick = () => ($("#format-help").hidden = !$("#format-help").hidden);
   $("#voices-load").onclick = () => loadVoices(true);
 
@@ -1241,7 +1270,7 @@ async function init() {
   ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
   drop.addEventListener("drop", (e) => addImages(e.dataTransfer.files));
   window.addEventListener("dragover", (e) => e.preventDefault());
-  window.addEventListener("drop", (e) => { e.preventDefault(); if (e.target.closest?.("#drop, #vrew-drop")) return; if (e.dataTransfer?.files?.length) addImages(e.dataTransfer.files); });
+  window.addEventListener("drop", (e) => { e.preventDefault(); if (e.target.closest?.("#drop, #vrew-drop, .chap")) return; if (e.dataTransfer?.files?.length) addImages(e.dataTransfer.files); });
   $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); };
 
   $("#build").onclick = build;

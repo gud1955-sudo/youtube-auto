@@ -134,3 +134,12 @@ select.gvoice { flex: 1; min-width: 260px; }
 .picks .hint { margin: 0 4px 0 0; }
 .btn.pick { padding: 7px 12px; font-size: 14px; background: var(--soft); color: var(--ink); border: 1px solid var(--line); }
 .btn.pick.on { border-color: var(--accent); background: #fbeeea; }
+.chapters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.chap { border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: var(--soft); }
+.chap.over { border-color: var(--accent); background: #fbeeea; }
+.chap-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.chap-head b { font-size: 16px; }
+.chap-head .chap-n { margin: 0 auto 0 4px; }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.chap-ta { min-height: 240px; font-size: 14px; }
+@media (max-width: 900px) { .chapters { grid-template-columns: 1fr; } }
