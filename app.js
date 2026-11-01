@@ -341,7 +341,7 @@ function vrewScenes() {
     const totS = lens.reduce((x, y) => x + y, 0) || 1; let off = 0;
     marked.forEach((sc, i) => { starts.push({ ci: cueAt(off / totS * totC), num: sc.num, chapter: sc.chapter }); off += lens[i]; });
   } else {
-    const n = Math.max(1, Math.min(cues.length, photoCount() || Math.round(total / 35)));
+    const n = Math.max(1, Math.min(cues.length, photoCount() || Math.round(total / 65)));
     for (let k = 0; k < n; k++) starts.push({ ci: cueAt(k * totC / n), num: k + 1, chapter: null });
   }
   starts[0].ci = 0;
@@ -411,7 +411,7 @@ function onScriptChange() {
   state.auto = false;
   if (!scenes.length && loose.length) {
     const est = estimate([{ lines: loose }]).secs;
-    const n = photoCount() || Math.max(1, Math.round(est / 35));
+    const n = photoCount() || Math.max(1, Math.round(est / 65));
     scenes = autoScenes(loose, n); state.auto = true;
   }
   state.scenes = scenes; state.problems = problems;
@@ -447,7 +447,7 @@ function renderSummary() {
     box.append(el("div", { class: "msgs" }, state.vrewMarked
       ? "대본의 [장면] 표시 위치에 맞춰 자막 시간으로 장면을 나눴습니다."
       : photoCount() ? `사진 ${photoCount()}장에 맞춰 자막을 ${state.scenes.length}개 장면으로 고르게 나눴습니다.`
-        : `약 35초마다 사진이 바뀌도록 ${state.scenes.length}개 장면으로 나눴습니다. 사진을 넣으면 사진 장수에 맞춰 다시 나눕니다.`));
+        : `약 1분마다 사진이 바뀌도록 ${state.scenes.length}개 장면으로 나눴습니다. 사진을 넣으면 사진 장수에 맞춰 다시 나눕니다.`));
     return;
   }
   if (!state.scenes.length) {
@@ -468,7 +468,7 @@ function renderSummary() {
   if (state.auto) {
     box.append(el("div", { class: "msgs" }, photoCount()
       ? `장면 표시가 없어서 사진 ${photoCount()}장에 맞춰 대본을 ${state.scenes.length}개 장면으로 자동으로 나눴습니다.`
-      : `장면 표시가 없어서 약 35초마다 사진이 바뀌도록 ${state.scenes.length}개 장면으로 나눴습니다. 사진을 넣으면 사진 장수에 맞춰 다시 나눕니다.`));
+      : `장면 표시가 없어서 약 1분마다 사진이 바뀌도록 ${state.scenes.length}개 장면으로 나눴습니다. 사진을 넣으면 사진 장수에 맞춰 다시 나눕니다.`));
   }
   if (state.problems.length) {
     box.append(el("div", { class: "msgs" }, ...state.problems.slice(0, 8).map((p) => el("div", { class: p.t === "err" ? "msg-err" : "msg-warn" }, "· " + p.m))));
