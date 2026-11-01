@@ -835,6 +835,7 @@ function initClips() {
   drawClips();
 }
 
+const SUB_VIDEO_ON = false; // 2026-11-01 구독·좋아요 영상 사용 중지 (멘트는 영상 맨 끝에만)
 // ───────────────────────── 구독·좋아요 영상 (한 번 넣으면 브라우저에 계속 저장) ─────────────────────────
 async function initSub() {
   const box = $("#sub-box"); if (!box) return;
@@ -1254,7 +1255,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
 
   // 구독·좋아요 영상: 대본에서 '구독'이 처음 나오는 자막 시점에 재생
   let sub = null;
-  if (state.sub?.file) {
+  if (SUB_VIDEO_ON && state.sub?.file) {
     const cue = cues.find((c) => /구독/.test(c.lines.join(" ")));
     if (!cue) toast("대본에 '구독' 문장이 없어 구독·좋아요 영상은 넣지 않았습니다", 6000);
     else {
