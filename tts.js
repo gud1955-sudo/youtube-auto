@@ -95,20 +95,74 @@ async function gLoadVoices(force) {
   } catch (e) { info.textContent = ""; toast(e.message, 8000); }
 }
 
+// Chirp 3 HD 목소리 특징 (구글 공식 목소리 설명을 한국어로 옮김)
+const VOICE_INFO = {
+  Sulafat: ["warm", "따뜻함"], Vindemiatrix: ["warm", "부드럽고 다정함"], Achernar: ["warm", "부드러움"],
+  Despina: ["warm", "매끄러움"], Algieba: ["warm", "매끄러움"], Achird: ["warm", "친근함"],
+  Callirrhoe: ["warm", "편안함"], Umbriel: ["warm", "편안함"], Enceladus: ["warm", "나지막함"],
+  Charon: ["calm", "차분한 설명조"], Rasalgethi: ["calm", "차분한 설명조"], Sadaltager: ["calm", "지적임"],
+  Schedar: ["calm", "고르고 안정적"], Gacrux: ["calm", "성숙함"], Iapetus: ["calm", "또렷함"],
+  Erinome: ["calm", "또렷함"], Kore: ["calm", "단단함"], Orus: ["calm", "단단함"], Alnilam: ["calm", "단단함"],
+  Algenib: ["calm", "거친 저음"], Pulcherrima: ["calm", "힘 있음"],
+  Zephyr: ["bright", "밝음"], Autonoe: ["bright", "밝음"], Puck: ["bright", "경쾌함"], Laomedeia: ["bright", "경쾌함"],
+  Aoede: ["bright", "산뜻함"], Leda: ["bright", "젊음"], Sadachbia: ["bright", "활기참"], Fenrir: ["bright", "들뜬 느낌"],
+  Zubenelgenubi: ["bright", "가벼운 말투"],
+};
+// 시니어 이야기 낭독 추천 (앞쪽일수록 우선)
+const RECOMMEND = ["Sulafat", "Gacrux", "Vindemiatrix", "Achernar", "Charon", "Schedar", "Sadaltager", "Algieba"];
+const CAT_LABEL = { rec: "★ 이야기 낭독 추천", warm: "따뜻하고 부드러운 목소리", calm: "차분하고 또렷한 목소리", bright: "밝고 활기찬 목소리", other: "기타 Chirp 3 HD", old: "구형 목소리 (Neural2·WaveNet·Standard)" };
+const shortName = (name) => (name.match(/Chirp3-HD-(\w+)/) || [])[1] || "";
+function catOf(v) {
+  if (tierOf(v.name) !== 0) return "old";
+  const n = shortName(v.name);
+  if (RECOMMEND.includes(n)) return "rec";
+  return VOICE_INFO[n]?.[0] || "other";
+}
+function niceLabel(v) {
+  const n = shortName(v.name), info = VOICE_INFO[n];
+  const g = GENDER_G[v.ssmlGender] || "";
+  if (!n) return gVoiceLabel(v);
+  return [n, g, info ? info[1] : ""].filter(Boolean).join(" · ") + (RECOMMEND.includes(n) ? " ★" : "");
+}
+
 function gRenderVoices() {
   const g = state.g, sel = $("#g-voice"), info = $("#g-voices-info");
   sel.innerHTML = "";
   sel.append(el("option", { value: "" }, g.voices.length ? "— 목소리 선택 —" : "— API 키를 저장하면 목록이 나옵니다 —"));
-  let tier = -1, grp = null;
-  for (const v of g.voices) {
-    const t = tierOf(v.name);
-    if (t !== tier) { tier = t; grp = el("optgroup", { label: TIER_LABEL[t] }); sel.append(grp); }
-    grp.append(el("option", { value: v.name }, gVoiceLabel(v)));
+  const groups = { rec: [], warm: [], calm: [], bright: [], other: [], old: [] };
+  for (const v of g.voices) groups[catOf(v)].push(v);
+  groups.rec.sort((a, b) => RECOMMEND.indexOf(shortName(a.name)) - RECOMMEND.indexOf(shortName(b.name)));
+  for (const k of ["warm", "calm", "bright", "other"]) groups[k].sort((a, b) => (a.ssmlGender || "").localeCompare(b.ssmlGender || "") || a.name.localeCompare(b.name));
+  for (const [k, list] of Object.entries(groups)) {
+    if (!list.length) continue;
+    const grp = el("optgroup", { label: CAT_LABEL[k] });
+    for (const v of list) grp.append(el("option", { value: v.name }, niceLabel(v)));
+    sel.append(grp);
   }
   if (g.voice && !g.voices.some((v) => v.name === g.voice)) sel.append(el("option", { value: g.voice }, g.voice));
   sel.value = g.voice || "";
   info.textContent = g.voices.length ? `한국어 목소리 ${g.voices.length}개 · 무료 한도는 Chirp 3 HD 기준 매달 100만 자` : "";
+  gRenderPicks();
   gSyncCast();
+}
+
+// 추천 목소리 바로 듣기 버튼 (여성 2 · 남성 2)
+function gRenderPicks() {
+  const g = state.g, box = $("#g-picks"); if (!box) return;
+  box.innerHTML = "";
+  const rec = RECOMMEND.map((n) => g.voices.find((v) => shortName(v.name) === n)).filter(Boolean);
+  const pick = [...rec.filter((v) => v.ssmlGender === "FEMALE").slice(0, 2), ...rec.filter((v) => v.ssmlGender === "MALE").slice(0, 2)];
+  if (!pick.length) return;
+  box.append(el("span", { class: "hint" }, "추천 목소리 바로 듣기:"));
+  for (const v of pick) {
+    const n = shortName(v.name), info = VOICE_INFO[n];
+    const b = el("button", { class: "btn pick" + (g.voice === v.name ? " on" : ""), title: "누르면 이 목소리로 정하고 들려줍니다",
+      onclick: async (e) => {
+        g.voice = v.name; store.set("gVoice", g.voice); $("#g-voice").value = g.voice; gSyncCast(); gRenderPicks();
+        await gPreview(e.currentTarget);
+      } }, `▶ ${n} (${GENDER_G[v.ssmlGender] || ""}, ${info ? info[1] : ""})`);
+    box.append(b);
+  }
 }
 
 // 기존 파이프라인이 쓰는 "내레이션" 목소리 설정에 반영
@@ -145,7 +199,7 @@ async function initGoogle() {
     toast(g.key ? "구글 API 키를 저장했습니다" : "키를 지웠습니다");
     if (g.key) gLoadVoices(true);
   };
-  $("#g-voice").onchange = (e) => { g.voice = e.target.value; store.set("gVoice", g.voice); gSyncCast(); };
+  $("#g-voice").onchange = (e) => { g.voice = e.target.value; store.set("gVoice", g.voice); gSyncCast(); gRenderPicks(); };
   const sp = $("#g-speed");
   sp.value = String(g.speed); if (!sp.value) { sp.value = "1"; g.speed = 1; }
   sp.onchange = () => { g.speed = +sp.value; store.set("gSpeed", g.speed); gSyncCast(); };

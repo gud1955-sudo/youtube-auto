@@ -130,3 +130,7 @@ h3.sub .hint { font-weight: 400; margin-left: 4px; }
 .tile.thumb .btn { padding: 4px 10px; font-size: 13px; }
 #g-key { flex: 1; min-width: 240px; }
 select.gvoice { flex: 1; min-width: 260px; }
+.picks { margin-top: 10px; gap: 6px; }
+.picks .hint { margin: 0 4px 0 0; }
+.btn.pick { padding: 7px 12px; font-size: 14px; background: var(--soft); color: var(--ink); border: 1px solid var(--line); }
+.btn.pick.on { border-color: var(--accent); background: #fbeeea; }
