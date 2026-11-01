@@ -95,19 +95,22 @@ async function gLoadVoices(force) {
   } catch (e) { info.textContent = ""; toast(e.message, 8000); }
 }
 
-// Chirp 3 HD 목소리 특징 (구글 공식 목소리 설명을 한국어로 옮김)
+// Chirp 3 HD 목소리 특징: [스타일 묶음, 스타일 설명, 느낌상 나이대]
+// 스타일은 구글 공식 목소리 설명을 한국어로 옮긴 것, 나이대는 그 설명을 바탕으로 한 추정치
 const VOICE_INFO = {
-  Sulafat: ["warm", "따뜻함"], Vindemiatrix: ["warm", "부드럽고 다정함"], Achernar: ["warm", "부드러움"],
-  Despina: ["warm", "매끄러움"], Algieba: ["warm", "매끄러움"], Achird: ["warm", "친근함"],
-  Callirrhoe: ["warm", "편안함"], Umbriel: ["warm", "편안함"], Enceladus: ["warm", "나지막함"],
-  Charon: ["calm", "차분한 설명조"], Rasalgethi: ["calm", "차분한 설명조"], Sadaltager: ["calm", "지적임"],
-  Schedar: ["calm", "고르고 안정적"], Gacrux: ["calm", "성숙함"], Iapetus: ["calm", "또렷함"],
-  Erinome: ["calm", "또렷함"], Kore: ["calm", "단단함"], Orus: ["calm", "단단함"], Alnilam: ["calm", "단단함"],
-  Algenib: ["calm", "거친 저음"], Pulcherrima: ["calm", "힘 있음"],
-  Zephyr: ["bright", "밝음"], Autonoe: ["bright", "밝음"], Puck: ["bright", "경쾌함"], Laomedeia: ["bright", "경쾌함"],
-  Aoede: ["bright", "산뜻함"], Leda: ["bright", "젊음"], Sadachbia: ["bright", "활기참"], Fenrir: ["bright", "들뜬 느낌"],
-  Zubenelgenubi: ["bright", "가벼운 말투"],
+  Sulafat: ["warm", "따뜻함", "중년"], Vindemiatrix: ["warm", "부드럽고 다정함", "중년"], Achernar: ["warm", "부드러움", "청년"],
+  Despina: ["warm", "매끄러움", "청년"], Algieba: ["warm", "매끄러움", "중년"], Achird: ["warm", "친근함", "청년"],
+  Callirrhoe: ["warm", "편안함", "청년"], Umbriel: ["warm", "편안함", "중년"], Enceladus: ["warm", "나지막함", "중년"],
+  Charon: ["calm", "차분한 설명조", "중년"], Rasalgethi: ["calm", "차분한 설명조", "중년"], Sadaltager: ["calm", "지적임", "중년"],
+  Schedar: ["calm", "고르고 안정적", "장년"], Gacrux: ["calm", "성숙함", "장년"], Iapetus: ["calm", "또렷함", "청년"],
+  Erinome: ["calm", "또렷함", "청년"], Kore: ["calm", "단단함", "중년"], Orus: ["calm", "단단함", "중년"], Alnilam: ["calm", "단단함", "중년"],
+  Algenib: ["calm", "거친 저음", "장년"], Pulcherrima: ["calm", "힘 있음", "중년"],
+  Zephyr: ["bright", "밝음", "청년"], Autonoe: ["bright", "밝음", "청년"], Puck: ["bright", "경쾌함", "청년"], Laomedeia: ["bright", "경쾌함", "청년"],
+  Aoede: ["bright", "산뜻함", "청년"], Leda: ["bright", "젊음", "청년"], Sadachbia: ["bright", "활기참", "청년"], Fenrir: ["bright", "들뜬 느낌", "청년"],
+  Zubenelgenubi: ["bright", "가벼운 말투", "청년"],
 };
+const AGE_ORDER = ["청년", "중년", "장년"];
+const AGE_HINT = { "청년": "20~30대 느낌", "중년": "40~50대 느낌", "장년": "60대 이상 느낌" };
 // 시니어 이야기 낭독 추천 (앞쪽일수록 우선)
 const RECOMMEND = ["Sulafat", "Gacrux", "Vindemiatrix", "Achernar", "Charon", "Schedar", "Sadaltager", "Algieba"];
 const CAT_LABEL = { rec: "★ 이야기 낭독 추천", warm: "따뜻하고 부드러운 목소리", calm: "차분하고 또렷한 목소리", bright: "밝고 활기찬 목소리", other: "기타 Chirp 3 HD", old: "구형 목소리 (Neural2·WaveNet·Standard)" };
@@ -122,7 +125,15 @@ function niceLabel(v) {
   const n = shortName(v.name), info = VOICE_INFO[n];
   const g = GENDER_G[v.ssmlGender] || "";
   if (!n) return gVoiceLabel(v);
-  return [n, g, info ? info[1] : ""].filter(Boolean).join(" · ") + (RECOMMEND.includes(n) ? " ★" : "");
+  return [n, g, info ? info[2] : "", info ? info[1] : ""].filter(Boolean).join(" · ") + (RECOMMEND.includes(n) ? " ★" : "");
+}
+function passFilter(v) {
+  const fg = $("#g-f-gender")?.value || "", fa = $("#g-f-age")?.value || "", fs = $("#g-f-style")?.value || "";
+  const info = VOICE_INFO[shortName(v.name)];
+  if (fg && v.ssmlGender !== fg) return false;
+  if (fa && info?.[2] !== fa) return false;
+  if (fs && info?.[0] !== fs) return false;
+  return true;
 }
 
 function gRenderVoices() {
@@ -130,9 +141,11 @@ function gRenderVoices() {
   sel.innerHTML = "";
   sel.append(el("option", { value: "" }, g.voices.length ? "— 목소리 선택 —" : "— API 키를 저장하면 목록이 나옵니다 —"));
   const groups = { rec: [], warm: [], calm: [], bright: [], other: [], old: [] };
-  for (const v of g.voices) groups[catOf(v)].push(v);
+  const filtering = ["#g-f-gender", "#g-f-age", "#g-f-style"].some((q) => $(q)?.value);
+  for (const v of g.voices) { if (passFilter(v) && !(filtering && catOf(v) === "old" && ($("#g-f-age").value || $("#g-f-style").value))) groups[catOf(v)].push(v); }
   groups.rec.sort((a, b) => RECOMMEND.indexOf(shortName(a.name)) - RECOMMEND.indexOf(shortName(b.name)));
-  for (const k of ["warm", "calm", "bright", "other"]) groups[k].sort((a, b) => (a.ssmlGender || "").localeCompare(b.ssmlGender || "") || a.name.localeCompare(b.name));
+  const ageIdx = (v) => { const i = AGE_ORDER.indexOf(VOICE_INFO[shortName(v.name)]?.[2]); return i < 0 ? 9 : i; };
+  for (const k of ["warm", "calm", "bright", "other"]) groups[k].sort((a, b) => (a.ssmlGender || "").localeCompare(b.ssmlGender || "") || ageIdx(a) - ageIdx(b) || a.name.localeCompare(b.name));
   for (const [k, list] of Object.entries(groups)) {
     if (!list.length) continue;
     const grp = el("optgroup", { label: CAT_LABEL[k] });
@@ -141,7 +154,8 @@ function gRenderVoices() {
   }
   if (g.voice && !g.voices.some((v) => v.name === g.voice)) sel.append(el("option", { value: g.voice }, g.voice));
   sel.value = g.voice || "";
-  info.textContent = g.voices.length ? `한국어 목소리 ${g.voices.length}개 · 무료 한도는 Chirp 3 HD 기준 매달 100만 자` : "";
+  const shown = Object.values(groups).reduce((n, l) => n + l.length, 0);
+  info.textContent = g.voices.length ? `한국어 목소리 ${shown}/${g.voices.length}개 표시 · 나이대는 목소리 설명을 바탕으로 한 추정 · 무료 한도는 Chirp 3 HD 기준 매달 100만 자` : "";
   gRenderPicks();
   gSyncCast();
 }
@@ -160,7 +174,7 @@ function gRenderPicks() {
       onclick: async (e) => {
         g.voice = v.name; store.set("gVoice", g.voice); $("#g-voice").value = g.voice; gSyncCast(); gRenderPicks();
         await gPreview(e.currentTarget);
-      } }, `▶ ${n} (${GENDER_G[v.ssmlGender] || ""}, ${info ? info[1] : ""})`);
+      } }, `▶ ${n} (${GENDER_G[v.ssmlGender] || ""} · ${info ? info[2] + " · " + info[1] : ""})`);
     box.append(b);
   }
 }
@@ -205,6 +219,7 @@ async function initGoogle() {
   sp.onchange = () => { g.speed = +sp.value; store.set("gSpeed", g.speed); gSyncCast(); };
   $("#g-play").onclick = (e) => gPreview(e.currentTarget);
   $("#g-voices-load").onclick = () => gLoadVoices(true);
+  for (const q of ["#g-f-gender", "#g-f-age", "#g-f-style"]) { const e = $(q); e.value = await store.get("gF" + q, ""); e.onchange = () => { store.set("gF" + q, e.value); gRenderVoices(); }; }
   gRenderVoices();
   gLoadVoices(false);
 }

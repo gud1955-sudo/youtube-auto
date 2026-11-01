@@ -27,6 +27,11 @@
       <button id="g-key-save" class="btn">저장</button>
     </div>
     <div class="row" style="margin-top:12px">
+      <select id="g-f-gender" class="f" title="성별"><option value="">성별 전체</option><option value="FEMALE">여성</option><option value="MALE">남성</option></select>
+      <select id="g-f-age" class="f" title="느낌상 나이대 (추정)"><option value="">나이대 전체</option><option value="청년">청년 (20~30대 느낌)</option><option value="중년">중년 (40~50대 느낌)</option><option value="장년">장년 (60대 이상 느낌)</option></select>
+      <select id="g-f-style" class="f" title="목소리 스타일"><option value="">스타일 전체</option><option value="warm">따뜻·부드러운</option><option value="calm">차분·또렷한</option><option value="bright">밝고 활기찬</option></select>
+    </div>
+    <div class="row" style="margin-top:8px">
       <select id="g-voice" class="gvoice"></select>
       <button id="g-play" class="btn play">▶ 듣기</button>
       <select id="g-speed" title="읽는 속도">
@@ -166,6 +171,6 @@
 <script src="lib/jszip.min.js"></script>
 <script src="app.js?v=10"></script>
 <script src="gen.js?v=1"></script>
-<script src="tts.js?v=3"></script>
+<script src="tts.js?v=4"></script>
 </body>
 </html>
