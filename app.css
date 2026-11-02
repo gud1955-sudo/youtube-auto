@@ -163,3 +163,17 @@ select.gvoice { flex: 1; min-width: 260px; }
 .clip-slot video { width: 160px; aspect-ratio: 16/9; border-radius: 6px; background: #000; }
 .clip-slot .clip-del { padding: 6px 12px; }
 @media (max-width: 560px) { .clip-row { grid-template-columns: 1fr; } }
+.look-wrap { display: grid; grid-template-columns: 280px 1fr; gap: 16px; margin: 14px 0 18px; align-items: start; }
+.look-ctl { display: flex; flex-direction: column; gap: 14px; }
+.ctl { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: #fff; }
+.ctl-h { font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.ctl-h b { color: var(--accent); }
+.ctl-row { display: flex; align-items: center; gap: 6px; }
+.ctl-row input[type=range] { flex: 1; accent-color: var(--accent); }
+.ctl small { color: var(--muted); display: block; margin-top: 6px; font-size: 12px; }
+.ctl select { width: 100%; font: inherit; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+.btn.sm { padding: 4px 10px; font-size: 16px; line-height: 1; }
+.look { margin: 0; }
+.look canvas { width: 100%; aspect-ratio: 16/9; border-radius: 10px; background: #101418; display: block; }
+.look figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
+@media (max-width: 760px) { .look-wrap { grid-template-columns: 1fr; } }

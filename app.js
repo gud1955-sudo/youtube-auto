@@ -914,7 +914,7 @@ async function build() {
   const mock = $("#opt-mock").checked;
   const previewOnly = $("#opt-preview").checked;
   const previewN = Math.max(1, +$("#opt-preview-n").value || 3);
-  const useSub = $("#opt-sub").checked, useZoom = $("#opt-zoom").checked, subSize = +$("#opt-subsize").value;
+  const useSub = $("#opt-sub").checked, useZoom = curMotion(), subSize = +$("#opt-subsize").value;
   CFG.lineMax = lineMaxFor(subSize);
   try { await document.fonts.load(`${subSize}px "Jua"`, "가나다"); } catch { /* 기본 글꼴 */ }
 
@@ -1159,6 +1159,96 @@ async function pickCodecs() {
   return { video, audio };
 }
 
+// ───────── 사진 움직임 (확대·축소·이동) ─────────
+const MOTIONS = {
+  none: "움직임 없음",
+  alt: "천천히 확대·축소 (번갈아)",
+  in: "천천히 확대만",
+  out: "천천히 축소만",
+  pan: "천천히 좌우 이동",
+  kb: "확대하며 옆으로 이동",
+};
+const curMotion = () => ({ kind: $("#opt-motion")?.value || "alt", str: +($("#opt-motion-str")?.value || CFG.zoom) });
+function motionAt(m, p, si) {
+  const S = m.str, ease = p * p * (3 - 2 * p) * 0.35 + p * 0.65; // 부드럽게
+  const dir = si % 2 === 0 ? 1 : -1;
+  switch (m.kind) {
+    case "none": return { z: 1, fx: 0 };
+    case "in": return { z: 1 + (S - 1) * ease, fx: 0 };
+    case "out": return { z: S - (S - 1) * ease, fx: 0 };
+    case "pan": return { z: S, fx: dir * (-1 + 2 * ease) };
+    case "kb": return { z: 1 + (S - 1) * ease, fx: dir * ease };
+    default: return si % 2 === 0 ? { z: 1 + (S - 1) * ease, fx: 0 } : { z: S - (S - 1) * ease, fx: 0 };
+  }
+}
+function drawMoving(ctx, bmp, m, p, si) {
+  const { W, H } = CFG;
+  const { z, fx } = motionAt(m, p, si);
+  const s = Math.max(W / bmp.width, H / bmp.height) * z;
+  const dw = bmp.width * s, dh = bmp.height * s;
+  ctx.drawImage(bmp, (W - dw) / 2 + fx * (dw - W) / 2, (H - dh) / 2, dw, dh);
+}
+
+// ───────── 화면 미리보기 (자막 크기·움직임 확인용 애니메이션) ─────────
+let pvImg = null, pvImgSrc = null;
+async function pvSample() {
+  const f = state.images.get(state.scenes[0]?.num) || [...state.images.values()][0] || state.imageOrder[0] || null;
+  if (f === pvImgSrc && pvImg) return pvImg;
+  pvImgSrc = f;
+  if (f) { try { pvImg = await createImageBitmap(f); return pvImg; } catch { /* 아래 */ } }
+  // 사진이 없으면 그림 예시
+  const c = new OffscreenCanvas(1920, 1080), g = c.getContext("2d");
+  const sky = g.createLinearGradient(0, 0, 0, 1080); sky.addColorStop(0, "#f2c58a"); sky.addColorStop(0.55, "#d98b5f"); sky.addColorStop(1, "#5a3b2e");
+  g.fillStyle = sky; g.fillRect(0, 0, 1920, 1080);
+  g.fillStyle = "#fbe7b5"; g.beginPath(); g.arc(1380, 420, 110, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#6b4a3a"; g.beginPath(); g.moveTo(0, 760); g.quadraticCurveTo(480, 560, 980, 720); g.quadraticCurveTo(1450, 860, 1920, 640); g.lineTo(1920, 1080); g.lineTo(0, 1080); g.fill();
+  // 기와집
+  g.fillStyle = "#2f2a2a"; g.beginPath(); g.moveTo(520, 640); g.quadraticCurveTo(760, 560, 1000, 640); g.lineTo(940, 600); g.quadraticCurveTo(760, 530, 580, 600); g.fill();
+  g.fillStyle = "#e9dcc4"; g.fillRect(600, 640, 340, 160); g.fillStyle = "#7a5236"; g.fillRect(730, 690, 80, 110);
+  g.fillStyle = "rgba(255,255,255,.85)"; g.font = "bold 44px sans-serif"; g.textAlign = "left"; g.fillText("사진 예시 (사진을 넣으면 첫 사진으로 바뀝니다)", 60, 90);
+  pvImg = c.transferToImageBitmap(); return pvImg;
+}
+function pvText() {
+  const l = state.scenes[0]?.lines?.find((x) => x.text && x.text.length > 12)?.text;
+  const t = l || "올해 예순여덟 살의 최순자, 읍내에서 제일 큰 기와집의 안주인이었습니다. 마을 사람 누구도 그녀 앞에서는 고개를 들지 못했습니다.";
+  return t;
+}
+function initPreview() {
+  const cv = $("#look"); if (!cv) return;
+  const ctx = cv.getContext("2d"); ctx.imageSmoothingQuality = "high";
+  document.fonts?.load(`80px "Jua"`, "가나다").catch(() => {});
+  const CYCLE = 5; let on = false, t0 = performance.now(), raf = 0;
+  const frame = async (now) => {
+    if (!on) return;
+    const t = Math.max(0, (now - t0) / 1000), si = Math.floor(t / CYCLE) % 2, p = (t % CYCLE) / CYCLE;
+    const img = await pvSample();
+    ctx.fillStyle = "#101418"; ctx.fillRect(0, 0, CFG.W, CFG.H);
+    drawMoving(ctx, img, curMotion(), p, si);
+    if ($("#opt-sub").checked) {
+      const size = +$("#opt-subsize").value;
+      const parts = splitSubtitle(pvText(), lineMaxFor(size));
+      const part = parts[Math.floor(t / 2.5) % parts.length] || parts[0];
+      if (part) drawSubtitle(ctx, { lines: part.lines, dialog: false }, size);
+    }
+    $("#look-cap").textContent = `${MOTIONS[curMotion().kind]} · 자막 ${$("#opt-subsize").value}pt`;
+    raf = requestAnimationFrame(frame);
+  };
+  const start = () => { if (!on) { on = true; t0 = performance.now(); raf = requestAnimationFrame(frame); } };
+  const stop = () => { on = false; cancelAnimationFrame(raf); };
+  new IntersectionObserver((es) => (es[0].isIntersecting ? start() : stop())).observe(cv);
+  // 설정 저장
+  const keep = (id, key) => { const e = $(id); e.addEventListener("input", () => { store.set(key, e.value); if (id === "#opt-motion") t0 = performance.now(); }); };
+  keep("#opt-subsize", "subSize"); keep("#opt-motion", "motion"); keep("#opt-motion-str", "motionStr");
+  const out = $("#opt-subsize-val"); const sync = () => (out.textContent = $("#opt-subsize").value + "pt");
+  $("#opt-subsize").addEventListener("input", sync);
+  $("#subsize-minus").onclick = () => { const e = $("#opt-subsize"); e.value = +e.value - 2; e.dispatchEvent(new Event("input")); };
+  $("#subsize-plus").onclick = () => { const e = $("#opt-subsize"); e.value = +e.value + 2; e.dispatchEvent(new Event("input")); };
+  (async () => {
+    $("#opt-subsize").value = await store.get("subSize", 86); $("#opt-motion").value = await store.get("motion", "alt");
+    $("#opt-motion-str").value = await store.get("motionStr", "1.08"); sync();
+  })();
+}
+
 // 사진 불러오기 (화면을 덮는 크기로 미리 줄여서 메모리 절약)
 async function loadBitmap(file, zoom) {
   if (!file) return null;
@@ -1218,7 +1308,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
   const canvas = $("#preview");
   const ctx = canvas.getContext("2d", { alpha: false });
   ctx.imageSmoothingQuality = "high";
-  const zoom = useZoom ? CFG.zoom : 1;
+  const zoom = useZoom.kind === "none" ? 1 : useZoom.str;
 
   // 장면별 사진 (번호 → 없으면 앞 장면 사진)
   const files = []; let lastF = null;
@@ -1326,10 +1416,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
       const sc = scNow;
       const st = sc.start + (vids.length ? vTotal : 0);
       const p = Math.min(1, Math.max(0, (t - st) / Math.max(0.001, sc.end - st)));
-      const z = !useZoom ? 1 : (si % 2 === 0 ? 1 + (zoom - 1) * p : zoom - (zoom - 1) * p);
-      const s = Math.max(W / bmp.width, H / bmp.height) * z;
-      const dw = bmp.width * s, dh = bmp.height * s;
-      ctx.drawImage(bmp, (W - dw) / 2, (H - dh) / 2, dw, dh);
+      drawMoving(ctx, bmp, useZoom, p, si);
     }
     const subOn = sub && t >= sub.start && t < sub.start + sub.dur;
     if (subOn) {
@@ -1457,7 +1544,7 @@ async function init() {
   drop.addEventListener("drop", (e) => addImages(e.dataTransfer.files));
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => { e.preventDefault(); if (e.target.closest?.("#drop, #vrew-drop")) return; if (e.dataTransfer?.files?.length) addImages(e.dataTransfer.files); });
-  initSub(); initClips();
+  initSub(); initClips(); initPreview();
   $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); };
 
   $("#build").onclick = build;

@@ -6,7 +6,7 @@
 <title>인생이야기 영상 제작기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=24">
+<link rel="stylesheet" href="app.css?v=25">
 </head>
 <body>
 <header class="top">
@@ -174,10 +174,40 @@
       <label><input type="checkbox" id="opt-preview"> 미리보기: 처음 <input type="number" id="opt-preview-n" value="3" min="1" max="999"> 개 장면만</label>
       <label data-mode="google"><input type="checkbox" id="opt-mock"> 무음 테스트 (음성 없이 사진 전환·자막 위치만 확인)</label>
       <label><input type="checkbox" id="opt-sub" checked> 자막 넣기</label>
-      <label><input type="checkbox" id="opt-zoom" checked> 사진 천천히 확대·축소 효과</label>
-      <label>자막 크기
-        <select id="opt-subsize"><option value="66">보통</option><option value="76">크게</option><option value="86" selected>구독 영상과 같게</option></select>
-      </label>
+    </div>
+    <div class="look-wrap">
+      <div class="look-ctl">
+        <div class="ctl">
+          <div class="ctl-h">자막 크기 <b id="opt-subsize-val">86pt</b></div>
+          <div class="ctl-row">
+            <button class="btn ghost sm" id="subsize-minus" type="button">−</button>
+            <input type="range" id="opt-subsize" min="48" max="130" step="2" value="86">
+            <button class="btn ghost sm" id="subsize-plus" type="button">+</button>
+          </div>
+          <small>영상(1920×1080) 기준 글자 높이 · 보통 70~90pt 권장</small>
+        </div>
+        <div class="ctl">
+          <div class="ctl-h">사진 움직임</div>
+          <select id="opt-motion">
+            <option value="alt" selected>천천히 확대·축소 (번갈아)</option>
+            <option value="in">천천히 확대만</option>
+            <option value="out">천천히 축소만</option>
+            <option value="pan">천천히 좌우 이동</option>
+            <option value="kb">확대하며 옆으로 이동</option>
+            <option value="none">움직임 없음</option>
+          </select>
+          <div class="ctl-h" style="margin-top:10px">움직임 세기</div>
+          <select id="opt-motion-str">
+            <option value="1.05">약하게</option>
+            <option value="1.08" selected>보통</option>
+            <option value="1.14">강하게</option>
+          </select>
+        </div>
+      </div>
+      <figure class="look">
+        <canvas id="look" width="1920" height="1080"></canvas>
+        <figcaption>화면 미리보기 — <span id="look-cap"></span> <small>(실제 영상과 같은 비율, 5초마다 다음 사진으로 넘어가는 모습)</small></figcaption>
+      </figure>
     </div>
     <div class="row">
       <button id="build" class="btn big">영상 만들기</button>
@@ -204,7 +234,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js"></script>
 <script src="lib/jszip.min.js"></script>
-<script src="app.js?v=27"></script>
+<script src="app.js?v=28"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=4"></script>
 </body>
