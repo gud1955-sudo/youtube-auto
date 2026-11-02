@@ -860,6 +860,24 @@ function tmText(ctx, text, x, y, size, color, align, maxW, font) {
   ctx.fillStyle = color; ctx.fillText(text, x, y);
   return fs;
 }
+// 제목 한 줄을 절반쯤에서 자연스럽게 두 줄로 (쉼표·띄어쓰기 기준, 줄바꿈이 있으면 그대로)
+function splitTitle(text) {
+  text = text.replace(/\s+\n/g, "\n").trim();
+  if (!text) return ["", ""];
+  if (text.includes("\n")) { const [a, ...b] = text.split("\n"); return [a.trim(), b.join(" ").trim()]; }
+  const mid = text.length / 2;
+  let best = -1, bestScore = Infinity;
+  for (let i = 1; i < text.length - 1; i++) {
+    if (text[i] !== " ") continue;
+    const prev = text[i - 1];
+    let score = Math.abs(i - mid);
+    if (/[,，.!?…]/.test(prev)) score -= text.length * 0.12;          // 쉼표·마침표 뒤에서 나누면 가산점
+    if (/(그런데|그러나|하지만|결국|그리고)$/.test(text.slice(0, i))) score -= text.length * 0.08; // 접속사 뒤
+    if (score < bestScore) { bestScore = score; best = i; }
+  }
+  if (best < 0) { const h = Math.ceil(text.length / 2); return [text.slice(0, h), text.slice(h)]; }
+  return [text.slice(0, best).trim(), text.slice(best + 1).trim()];
+}
 const fitSize = (ctx, text, size, maxW, font) => { if (!text) return size; ctx.font = `${font[1]} ${size}px "${font[0]}", sans-serif`; const w = ctx.measureText(text).width; return w > maxW ? Math.floor(size * maxW / w) : size; };
 async function drawThumbMaker() {
   const cv = $("#tm-canvas"); if (!cv) return;
@@ -878,7 +896,7 @@ async function drawThumbMaker() {
   if ($("#tm-shade").checked) { const g = ctx.createLinearGradient(0, H * 0.5, 0, H); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,.55)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
   const font = $("#tm-font").value.split("|"); try { await document.fonts.load(`${font[1]} 60px "${font[0]}"`, "가나다"); } catch { /* 기본 */ }
   const k = +$("#tm-size").value;
-  const t1 = $("#tm-t1").value.trim(), t2 = $("#tm-t2").value.trim(), q = $("#tm-quote").value.trim();
+  const [t1, t2] = splitTitle($("#tm-title").value), q = $("#tm-quote").value.trim();
   const maxW = W - 44;
   // 두 줄은 같은 크기로 (긴 줄에 맞춤)
   let fs = Math.round(66 * k);
@@ -898,7 +916,7 @@ function initThumbMaker() {
   drop.ondragleave = () => drop.classList.remove("over");
   drop.ondrop = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("over"); setThumbPhoto(e.dataTransfer.files[0]); };
   let deb; const redraw = () => { clearTimeout(deb); deb = setTimeout(drawThumbMaker, 60); };
-  ["#tm-quote", "#tm-t1", "#tm-t2", "#tm-c1", "#tm-c2", "#tm-font", "#tm-size", "#tm-shade", "#tm-posy"].forEach((id) => { $(id).addEventListener("input", redraw); $(id).addEventListener("change", redraw); });
+  ["#tm-quote", "#tm-title", "#tm-c1", "#tm-c2", "#tm-font", "#tm-size", "#tm-shade", "#tm-posy"].forEach((id) => { $(id).addEventListener("input", redraw); $(id).addEventListener("change", redraw); });
   // 글꼴·색·크기는 저장 (제목·대사는 매번 새로)
   for (const [id, key] of [["#tm-font", "tmFont"], ["#tm-size", "tmSize"], ["#tm-c1", "tmC1"], ["#tm-c2", "tmC2"], ["#tm-shade", "tmShade"]]) {
     const e = $(id); store.get(key, null).then((v) => { if (v != null) { if (e.type === "checkbox") e.checked = v; else e.value = v; redraw(); } });

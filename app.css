@@ -187,9 +187,11 @@ select.gvoice { flex: 1; min-width: 260px; }
 .tm-field { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 14px; }
 .tm-field span { display: flex; align-items: center; justify-content: space-between; }
 .tm-field small { font-weight: 400; color: var(--muted); }
+.tm-field textarea { font: inherit; font-weight: 400; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; resize: vertical; }
 .tm-field input[type=text] { font: inherit; font-weight: 400; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
 .tm-field input[type=color] { width: 34px; height: 24px; border: 0; padding: 0; background: none; cursor: pointer; }
 .tm-row { display: flex; flex-wrap: wrap; gap: 12px; font-size: 14px; align-items: center; }
 .tm-row select { font: inherit; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); }
 .tm-look canvas { width: 100%; aspect-ratio: 16/9; border-radius: 10px; background: #222; display: block; }
 @media (max-width: 860px) { .tm-wrap { grid-template-columns: 1fr; } }
+.tm-row input[type=color] { width: 34px; height: 24px; border: 0; padding: 0; background: none; cursor: pointer; vertical-align: middle; }

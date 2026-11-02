@@ -6,7 +6,7 @@
 <title>인생이야기 영상 제작기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Gowun+Dodum&family=Nanum+Gothic:wght@800&family=Nanum+Myeongjo:wght@800&family=Noto+Sans+KR:wght@700;900&family=Gothic+A1:wght@800&family=Nanum+Pen+Script&family=Gaegu:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=28">
+<link rel="stylesheet" href="app.css?v=29">
 </head>
 <body>
 <header class="top">
@@ -182,8 +182,8 @@
           <strong>썸네일 사진 넣기</strong><span id="tm-name">끌어다 놓거나 클릭 · 넣으면 영상의 001 사진으로도 등록됩니다</span>
         </label>
         <label class="tm-field"><span>위 대사 <small>(오른쪽 위, 흰 글씨)</small></span><input type="text" id="tm-quote" placeholder="예: 내 사람 옆에서 비켜요!"></label>
-        <label class="tm-field"><span>제목 1줄 <input type="color" id="tm-c1" value="#3cff2e"></span><input type="text" id="tm-t1" placeholder="예: 남편 앞에서 내연녀에게 뺨을 맞은 임신부, 그런데"></label>
-        <label class="tm-field"><span>제목 2줄 <input type="color" id="tm-c2" value="#fff200"></span><input type="text" id="tm-t2" placeholder="예: 달려온 비서가 외친 한마디에 모두가 굳었습니다"></label>
+        <label class="tm-field"><span>제목 <small>(한 번에 입력 → 자동으로 두 줄로 나눔)</small></span><textarea id="tm-title" rows="2" placeholder="예: 남편 앞에서 내연녀에게 뺨을 맞은 임신부, 그런데 달려온 비서가 외친 한마디에 모두가 굳었습니다"></textarea></label>
+        <div class="tm-row"><label>윗줄 색 <input type="color" id="tm-c1" value="#3cff2e"></label><label>아랫줄 색 <input type="color" id="tm-c2" value="#fff200"></label><small>직접 나누고 싶으면 줄바꿈(Enter)</small></div>
         <div class="tm-row">
           <label>글꼴 <select id="tm-font">
             <option value="Jua|400" selected>주아</option><option value="Do Hyeon|400">도현</option><option value="Black Han Sans|400">검은고딕</option>
@@ -315,7 +315,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=36"></script>
+<script src="app.js?v=37"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=5"></script>
 </body>
