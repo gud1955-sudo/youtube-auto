@@ -990,7 +990,7 @@ async function build() {
       await makeVoices(jobs, mock);
       checkCancel();
       // 2) 시간 계산
-      tl = buildTimeline(scenes);
+      tl = buildTimeline(scenes, await preRollDur(scenes));
       cues = useSub ? buildCues(scenes) : [];
       srt = buildSrt(buildCues(scenes));
     }
@@ -1072,10 +1072,26 @@ async function makeVoices(jobs, mock) {
   checkCancel();
 }
 
-function buildTimeline(scenes) {
+// 맨 앞 하이라이트 영상(첫 장면의 영상 1·2) 길이 합 — 이 동안은 내레이션 없이 영상만 나옴
+async function preRollDur(scenes) {
+  const list = state.videos.get(scenes[0]?.num) || [];
+  let sum = 0;
+  for (const { file } of list) {
+    sum += await new Promise((res) => {
+      const v = document.createElement("video"); v.preload = "metadata"; v.muted = true;
+      const url = URL.createObjectURL(file);
+      const fin = (d) => { URL.revokeObjectURL(url); res(isFinite(d) ? d : 0); };
+      v.onloadedmetadata = () => fin(v.duration); v.onerror = () => fin(0); setTimeout(() => fin(0), 15000);
+      v.src = url;
+    });
+  }
+  return sum;
+}
+
+function buildTimeline(scenes, preRoll = 0) {
   const sr = CFG.sampleRate;
   const segs = []; // {silence: n} | {job}
-  let s = Math.round(CFG.startPad * sr); segs.push({ silence: s });
+  let s = Math.round((CFG.startPad + preRoll) * sr); segs.push({ silence: s });
   const flat = []; scenes.forEach((sc, si) => sc.lines.forEach((l) => flat.push([si, l])));
   flat.forEach(([si, l], i) => {
     const sc = scenes[si];
@@ -1274,7 +1290,7 @@ function initPreview() {
       drawMoving(ctx, img, curMotion(), p, si);
       if (clips.length) capNote = "영상이 끝나고 사진 · ";
     }
-    if ($("#opt-sub").checked) {
+    if ($("#opt-sub").checked && seg >= clips.length) {
       const size = +$("#opt-subsize").value;
       const parts = splitSubtitle(pvText(), lineMaxFor(size));
       const part = parts[Math.floor(t / 2.5) % parts.length] || parts[0];
