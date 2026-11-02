@@ -1654,6 +1654,10 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
   // 장면별 사진 (번호 → 없으면 앞 장면 사진)
   const files = []; let lastF = null;
   scenes.forEach((sc) => { const idx = state.scenes.indexOf(sc); const f = imageFor(sc.num, idx) || lastF; files.push(f); lastF = f; });
+  // 사진이 빈 장면은 앞 사진을 이어서 씀 → 같은 사진이 이어지는 구간은 하나로 보고 확대·이동도 끊김 없이
+  const runFirst = [], runLast = [], runNo = []; let rn = -1;
+  scenes.forEach((sc, i) => { if (i === 0 || files[i] !== files[i - 1] || (state.videos.get(sc.num)?.length)) rn++; runNo.push(rn); runFirst.push(i > 0 && runNo[i - 1] === rn ? runFirst[i - 1] : i); });
+  for (let i = scenes.length - 1; i >= 0; i--) runLast[i] = i + 1 < scenes.length && runNo[i + 1] === runNo[i] ? runLast[i + 1] : i;
   const bmpCache = new Map(); // 장면 index → Promise<bitmap>
   const getBmp = (i) => { if (i >= scenes.length) return null; if (!bmpCache.has(i)) bmpCache.set(i, loadBitmap(files[i], zoom)); return bmpCache.get(i); };
 
@@ -1684,6 +1688,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
     v.addEventListener("seeked", fin); v.currentTime = time; setTimeout(fin, 3000);
   });
   let vids = await loadVids(0); loadVids(1);
+  const runFirstVids = vids.reduce((x, v) => x + v.dur, 0); // 첫 장면 앞 하이라이트 영상 길이
 
   const reader = tl.reader || new AudioReader(tl.segs, mock);
   const fxNow = curFx();
@@ -1773,10 +1778,10 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
       drewVideo = true;
     }
     if (bmp && !drewVideo) {
-      const sc = scNow;
-      const st = sc.start + (vids.length ? vTotal : 0);
-      const p = Math.min(1, Math.max(0, (t - st) / Math.max(0.001, sc.end - st)));
-      drawMoving(ctx, bmp, useZoom, p, si);
+      const a = runFirst[si], b = runLast[si];
+      const st = scenes[a].start + (a === si && vids.length ? vTotal : (a === 0 && runFirstVids ? runFirstVids : 0));
+      const p = Math.min(1, Math.max(0, (t - st) / Math.max(0.001, scenes[b].end - st)));
+      drawMoving(ctx, bmp, useZoom, p, runNo[si]);
     }
     if (!drewVideo) drawFx(ctx, fxNow, t);
     const subOn = sub && t >= sub.start && t < sub.start + sub.dur;
