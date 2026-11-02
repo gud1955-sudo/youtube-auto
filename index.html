@@ -182,7 +182,8 @@
           <input type="file" id="tm-input" accept="image/*" hidden>
           <strong>썸네일 사진 넣기</strong><span id="tm-name">끌어다 놓거나 클릭 · 넣으면 영상의 001 사진으로도 등록됩니다</span>
         </label>
-        <label class="tm-field"><span><span>위 대사 <small>(흰 글씨 · 미리보기에서 끌어서 이동)</small></span><button class="btn ghost sm" id="tm-qreset" type="button" style="font-size:12px;padding:3px 8px">위치 처음대로</button></span><input type="text" id="tm-quote" placeholder="예: 내 사람 옆에서 비켜요!"></label>
+        <label class="tm-field"><span><span>위 대사 <small>(미리보기에서 끌어서 이동 · 모서리 □ 끌어서 크기)</small></span><button class="btn ghost sm" id="tm-qreset" type="button" style="font-size:12px;padding:3px 8px">처음대로</button></span><input type="text" id="tm-quote" placeholder="예: 내 사람 옆에서 비켜요!"></label>
+        <div class="tm-row"><label>대사 크기 <input type="range" id="tm-qsize" min="35" max="300" step="5" value="100"></label></div>
         <div class="tm-field"><span>제목 3개 <small>(한 번에 입력 → 자동 두 줄 · 고른 제목이 미리보기에 보임)</small></span></div>
         <div class="tm-title-row on" data-i="1">
           <div class="tm-title-h"><label><input type="radio" name="tm-pick" value="1" checked> 제목 1</label><button class="btn ghost sm tm-dl" type="button" data-i="1">⬇ 다운로드</button></div>
@@ -318,7 +319,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=46"></script>
+<script src="app.js?v=47"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=6"></script>
 </body>

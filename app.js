@@ -841,7 +841,7 @@ function drawClips() {
   });
 }
 // ───────── 썸네일 만들기 (사진 + 위 대사 + 제목 2줄 → 1280×720 PNG) ─────────
-const tm = { bmp: null, src: null, q: null, qBox: null }; // q = 위 대사 위치 {x, y} (가운데 기준, 0~1)
+const tm = { bmp: null, src: null, q: null, qBox: null, qScale: 1 }; // q = 위 대사 위치 {x, y} (가운데 기준, 0~1)
 function setThumbPhoto(f) {
   if (!f) return;
   if (!(f.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(f.name))) return toast("사진 파일을 넣어 주세요");
@@ -945,14 +945,20 @@ async function drawThumbMaker(pickIdx) {
     });
   }
   if (q) {
-    const qs = fitSize(ctx, q, Math.round(62 * k), W * 0.9, font);
+    const qs = fitSize(ctx, q, Math.round(62 * tm.qScale), W * 0.96, font);
     ctx.font = `${font[1]} ${qs}px "${font[0]}", sans-serif`;
     const qw = ctx.measureText(q).width;
     if (!tm.q) tm.q = { x: (W - 60 - qw / 2) / W, y: (72 - qs * 0.35) / H }; // 기본: 오른쪽 위
-    const cx = Math.min(W - qw / 2 - 10, Math.max(qw / 2 + 10, tm.q.x * W)), cy = Math.min(H - qs * 0.6, Math.max(qs * 0.7, tm.q.y * H));
+    const cx = Math.min(W - qw / 2 - 28, Math.max(qw / 2 + 16, tm.q.x * W)), cy = Math.min(H - qs * 0.7 - 16, Math.max(qs * 0.7 + 6, tm.q.y * H));
     tmText(ctx, q, cx, cy + qs * 0.35, qs, "#ffffff", "center", W * 0.9, font);
     tm.qBox = { x: cx - qw / 2 - 12, y: cy - qs * 0.7, w: qw + 24, h: qs * 1.4 };
-    if (tm.dragging || tm.hover) { ctx.save(); ctx.setLineDash([10, 6]); ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.strokeRect(tm.qBox.x, tm.qBox.y, tm.qBox.w, tm.qBox.h); ctx.restore(); }
+    if (tm.dragging || tm.hover) {
+      const bx = tm.qBox; ctx.save(); ctx.setLineDash([10, 6]); ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.95)"; ctx.strokeRect(bx.x, bx.y, bx.w, bx.h);
+      // 크기 조절 손잡이 (오른쪽 아래 모서리)
+      ctx.setLineDash([]); ctx.fillStyle = "#fff"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+      ctx.fillRect(bx.x + bx.w - 13, bx.y + bx.h - 13, 26, 26); ctx.strokeRect(bx.x + bx.w - 13, bx.y + bx.h - 13, 26, 26);
+      ctx.restore();
+    }
   } else tm.qBox = null;
   $("#tm-state").textContent = f && raw.trim() ? "✓ 준비됨" : ""; $("#tm-state").className = "state ok";
 }
@@ -973,18 +979,34 @@ function initThumbMaker() {
   // 위 대사 끌어서 옮기기
   const pos = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * cv.width, y: (e.clientY - r.top) / r.height * cv.height }; };
   const inQ = (p) => tm.qBox && p.x >= tm.qBox.x && p.x <= tm.qBox.x + tm.qBox.w && p.y >= tm.qBox.y && p.y <= tm.qBox.y + tm.qBox.h;
+  const inHandle = (p) => tm.qBox && Math.abs(p.x - (tm.qBox.x + tm.qBox.w)) <= 24 && Math.abs(p.y - (tm.qBox.y + tm.qBox.h)) <= 24;
   let grab = null;
-  cv.addEventListener("pointerdown", (e) => { const p = pos(e); if (!inQ(p)) return; grab = { dx: p.x - tm.q.x * cv.width, dy: p.y - tm.q.y * cv.height }; tm.dragging = true; cv.setPointerCapture(e.pointerId); e.preventDefault(); });
+  cv.addEventListener("pointerdown", (e) => {
+    const p = pos(e);
+    if (inHandle(p)) { // 모서리를 끌면 글자 크기 조절 (가운데 기준)
+      const cx = tm.qBox.x + tm.qBox.w / 2, cy = tm.qBox.y + tm.qBox.h / 2;
+      grab = { resize: true, cx, cy, d0: Math.hypot(p.x - cx, p.y - cy), s0: tm.qScale };
+    } else if (inQ(p)) grab = { dx: p.x - tm.q.x * cv.width, dy: p.y - tm.q.y * cv.height };
+    else return;
+    tm.dragging = true; cv.setPointerCapture(e.pointerId); e.preventDefault();
+  });
   cv.addEventListener("pointermove", (e) => {
     const p = pos(e);
-    if (grab) { tm.q = { x: (p.x - grab.dx) / cv.width, y: (p.y - grab.dy) / cv.height }; redraw(); }
-    else { const h = inQ(p); if (h !== !!tm.hover) { tm.hover = h; cv.style.cursor = h ? "move" : "default"; redraw(); } }
+    if (grab?.resize) { tm.qScale = Math.max(0.35, Math.min(3, grab.s0 * Math.hypot(p.x - grab.cx, p.y - grab.cy) / Math.max(1, grab.d0))); $("#tm-qsize").value = Math.round(tm.qScale * 100); drawThumbMaker(); }
+    else if (grab) { tm.q = { x: (p.x - grab.dx) / cv.width, y: (p.y - grab.dy) / cv.height }; redraw(); }
+    else {
+      const hd = inHandle(p), h = hd || inQ(p);
+      cv.style.cursor = hd ? "nwse-resize" : h ? "move" : "default";
+      if (h !== !!tm.hover) { tm.hover = h; redraw(); }
+    }
   });
-  const drop2 = () => { if (grab) { grab = null; tm.dragging = false; store.set("tmQ", tm.q); redraw(); } };
+  const drop2 = () => { if (grab) { grab = null; tm.dragging = false; store.set("tmQ", tm.q); store.set("tmQScale", tm.qScale); redraw(); } };
   cv.addEventListener("pointerup", drop2); cv.addEventListener("pointercancel", drop2);
   cv.addEventListener("pointerleave", () => { if (tm.hover && !grab) { tm.hover = false; redraw(); } });
   store.get("tmQ", null).then((v) => { if (v && !tm.q) { tm.q = v; redraw(); } });
-  $("#tm-qreset").onclick = () => { tm.q = null; store.set("tmQ", null); redraw(); };
+  store.get("tmQScale", 1).then((v) => { tm.qScale = +v || 1; $("#tm-qsize").value = Math.round(tm.qScale * 100); redraw(); });
+  $("#tm-qsize").addEventListener("input", (e) => { tm.qScale = +e.target.value / 100; store.set("tmQScale", tm.qScale); redraw(); });
+  $("#tm-qreset").onclick = () => { tm.q = null; tm.qScale = 1; $("#tm-qsize").value = 100; store.set("tmQ", null); store.set("tmQScale", 1); redraw(); };
   // 제목 고르기 (고른 제목이 미리보기에) — 칸을 누르거나 입력하면 그 제목으로
   const pick = (i) => { const r = document.querySelector(`input[name="tm-pick"][value="${i}"]`); if (r && !r.checked) r.checked = true; document.querySelectorAll(".tm-title-row").forEach((row) => row.classList.toggle("on", row.dataset.i === String(i))); redraw(); };
   document.querySelectorAll('input[name="tm-pick"]').forEach((r) => r.addEventListener("change", () => pick(r.value)));
