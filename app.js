@@ -765,6 +765,9 @@ function thumbURL(f) { if (!thumbCache.has(f)) thumbCache.set(f, URL.createObjec
 
 function renderGrid() {
   drawClips?.();
+  // 썸네일 칸에 넣은 사진은 항상 첫 장면에 (대본을 나중에 넣어 번호가 바뀌어도)
+  if (state.thumbFixed && state.images.get(clipScene()) !== state.thumbFixed) state.images.set(clipScene(), state.thumbFixed);
+  drawThumbSlot?.();
   const g = $("#grid"); g.innerHTML = "";
   const st = $("#img-state");
   if (!state.scenes.length) {
@@ -825,7 +828,7 @@ function setClip(part, file) {
 }
 const clipURLs = {};
 function drawClips() {
-  document.querySelectorAll(".clip-slot").forEach((slot) => {
+  document.querySelectorAll(".clip-slot[data-part]").forEach((slot) => {
     const part = +slot.dataset.part;
     let f = null; for (const list of state.videos.values()) { const x = list.find((y) => y.part === part); if (x) f = x.file; }
     slot.querySelector(".clip-name").textContent = f ? "✓ " + f.name : "끌어다 놓거나 클릭";
@@ -836,8 +839,38 @@ function drawClips() {
     v.hidden = !f; slot.querySelector(".clip-del").hidden = !f;
   });
 }
+// 썸네일(001) 사진 칸 — 이름이 001이 아니어도 첫 장면 사진으로
+let thumbURLx = null;
+function drawThumbSlot() {
+  const slot = $("#thumb-slot"); if (!slot) return;
+  const f = state.images.get(clipScene());
+  slot.classList.toggle("has", !!f);
+  slot.querySelector(".clip-name").textContent = f ? "✓ " + f.name : "끌어다 놓거나 클릭 · 파일 이름 상관없음";
+  const img = slot.querySelector("img");
+  if (thumbURLx) { URL.revokeObjectURL(thumbURLx); thumbURLx = null; }
+  if (f) { thumbURLx = URL.createObjectURL(f); img.src = thumbURLx; }
+  img.hidden = !f; slot.querySelector(".clip-del").hidden = !f;
+}
+function initThumbSlot() {
+  const slot = $("#thumb-slot"); if (!slot) return;
+  const inp = slot.querySelector("input"), drop = slot.querySelector(".drop");
+  const take = (f) => {
+    if (!f) return;
+    if (!(f.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(f.name))) return toast("사진 파일을 넣어 주세요");
+    state.images.set(clipScene(), f); state.thumbFixed = f;
+    if (state.auto) onScriptChange(); else renderGrid();
+    toast("썸네일 사진을 001로 넣었습니다");
+  };
+  inp.onchange = (e) => { take(e.target.files[0]); e.target.value = ""; };
+  drop.ondragover = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("over"); take(e.dataTransfer.files[0]); };
+  slot.querySelector(".clip-del").onclick = () => { state.images.delete(clipScene()); state.thumbFixed = null; if (state.auto) onScriptChange(); else renderGrid(); };
+  drawThumbSlot();
+}
 function initClips() {
-  document.querySelectorAll(".clip-slot").forEach((slot) => {
+  initThumbSlot();
+  document.querySelectorAll(".clip-slot[data-part]").forEach((slot) => {
     const part = +slot.dataset.part, inp = slot.querySelector("input"), drop = slot.querySelector(".drop");
     const take = (f) => { if (!f) return; if (!(f.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(f.name))) return toast("영상 파일(mp4)을 넣어 주세요"); setClip(part, f); };
     inp.onchange = (e) => { take(e.target.files[0]); e.target.value = ""; };
@@ -929,7 +962,7 @@ async function build() {
   if (state.building) return;
   const mock = $("#opt-mock").checked;
   const previewOnly = $("#opt-preview").checked;
-  const previewN = Math.max(1, +$("#opt-preview-n").value || 3);
+  const previewMin = Math.max(0.5, +$("#opt-preview-n").value || 1);
   const useSub = $("#opt-sub").checked, useZoom = curMotion(), subSize = +$("#opt-subsize").value;
   CFG.lineMax = lineMaxFor(subSize);
   try { await loadSubFont(); } catch { /* 기본 글꼴 */ }
@@ -952,9 +985,15 @@ async function build() {
   }
   if (typeof VideoEncoder === "undefined" || typeof AudioEncoder === "undefined") return toast("이 브라우저는 영상 만들기를 지원하지 않습니다. 최신 크롬을 사용하세요.", 6000);
 
-  const scenes = previewOnly ? state.scenes.slice(0, previewN) : state.scenes;
+  // 미리보기: 처음 N분 — 예상 길이로 필요한 장면만 음성을 만들고, 나중에 정확히 N분에서 자름
+  let scenes = state.scenes;
+  if (previewOnly) {
+    let acc = 0; const pick = [];
+    for (const sc of state.scenes) { pick.push(sc); acc += estimate([sc]).secs; if (acc >= previewMin * 60 * 1.25 + 5) break; }
+    scenes = pick;
+  }
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const baseName = `인생이야기_${stamp}${previewOnly ? `_미리보기${scenes.length}장면` : ""}${mock ? "_무음테스트" : ""}`;
+  const baseName = `인생이야기_${stamp}${previewOnly ? `_미리보기${previewMin}분` : ""}${mock ? "_무음테스트" : ""}`;
 
   // 저장 위치 (버튼을 누른 직후에 물어봐야 함)
   let writable = null, fileHandle = null;
@@ -992,7 +1031,16 @@ async function build() {
       // 2) 시간 계산
       tl = buildTimeline(scenes, await preRollDur(scenes));
       cues = useSub ? buildCues(scenes) : [];
-      srt = buildSrt(buildCues(scenes));
+      if (previewOnly) {
+        // 하이라이트 영상 + 낭독 N분에서 자르기
+        const cap = (tl.segs[0]?.silence || 0) / CFG.sampleRate + previewMin * 60;
+        if (tl.total > cap) {
+          tl.total = cap; tl.totalSamples = Math.round(cap * CFG.sampleRate);
+          scenes = scenes.filter((sc) => sc.start < cap); scenes.forEach((sc) => (sc.end = Math.min(sc.end, cap)));
+          cues = cues.filter((c) => c.start < cap).map((c) => ({ ...c, end: Math.min(c.end, cap) }));
+        }
+      }
+      srt = buildSrt(previewOnly ? cues : buildCues(scenes));
     }
     // 3) 렌더링
     const out = await render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 });
@@ -1259,12 +1307,20 @@ function initPreview() {
   };
   const vidFor = (f) => {
     if (!pvVids.has(f)) {
-      const el = document.createElement("video"); el.muted = true; el.playsInline = true; el.preload = "auto";
+      const el = document.createElement("video"); el.muted = !pvSound; el.playsInline = true; el.preload = "auto";
+      el.volume = Math.min(1, (+$("#opt-clipvol").value) / 100);
       const url = URL.createObjectURL(f); el.src = url; pvVids.set(f, { el, url });
     }
     return pvVids.get(f).el;
   };
   let seg = -1, segStart = 0, lastKey = "";
+  // 소리 켜기 (브라우저는 버튼을 눌러야 소리 재생을 허락함)
+  var pvSound = false;
+  const sbtn = $("#look-sound");
+  const applyVol = () => { for (const v of pvVids.values()) { v.el.muted = !pvSound; v.el.volume = Math.min(1, (+$("#opt-clipvol").value) / 100); } $("#opt-clipvol-val").textContent = $("#opt-clipvol").value + "%"; };
+  sbtn.onclick = () => { pvSound = !pvSound; sbtn.textContent = pvSound ? "🔊 소리 끄기" : "🔈 소리 켜고 보기"; applyVol(); seg = -1; t0 = performance.now(); };
+  $("#opt-clipvol").addEventListener("input", () => { applyVol(); store.set("clipVol", $("#opt-clipvol").value); });
+  store.get("clipVol", "100").then((v) => { $("#opt-clipvol").value = v; applyVol(); });
   const frame = async (now) => {
     if (!on) return;
     const clips = clipList();
@@ -1436,10 +1492,25 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
       }
     }
   }
+  // 섞을 소리: 맨 앞 하이라이트 영상들의 자체 소리 (음량 조절) + (예전) 구독 영상
+  const mixes = [];
+  const clipVol = Math.max(0, Math.min(2, (+($("#opt-clipvol")?.value ?? 100)) / 100));
+  if (clipVol > 0 && vids.length) {
+    setStage("하이라이트 영상 소리 준비 중…", 0.25);
+    let off = 0;
+    const list = state.videos.get(scenes[0].num) || [];
+    for (let k = 0; k < vids.length; k++) {
+      const file = list[k]?.file;
+      if (file) { try { const pcm = await decodeAt(await file.arrayBuffer(), sampleRate); mixes.push({ pcm: pcm.subarray(0, Math.round(vids[k].dur * sampleRate)), s0: Math.round(off * sampleRate), gain: clipVol }); } catch { /* 소리 없는 영상 */ } }
+      off += vids[k].dur;
+    }
+  }
+  if (sub?.pcm) mixes.push({ pcm: sub.pcm, s0: Math.round(sub.start * sampleRate), gain: 0.8 });
   const mixSub = (pcm, at) => {
-    if (!sub?.pcm) return pcm;
-    const s0 = Math.round(sub.start * sampleRate);
-    for (let i = 0; i < pcm.length; i++) { const k = at + i - s0; if (k >= 0 && k < sub.pcm.length) pcm[i] = Math.max(-1, Math.min(1, pcm[i] + sub.pcm[k] * 0.8)); }
+    for (const m of mixes) {
+      const a = Math.max(0, m.s0 - at), b = Math.min(pcm.length, m.s0 + m.pcm.length - at);
+      for (let i = a; i < b; i++) pcm[i] = Math.max(-1, Math.min(1, pcm[i] + m.pcm[at + i - m.s0] * m.gain));
+    }
     return pcm;
   };
   const totalFrames = Math.max(1, Math.round(tl.total * fps));

@@ -154,7 +154,7 @@ select.gvoice { flex: 1; min-width: 260px; }
 .sub-row video { width: 240px; max-width: 100%; aspect-ratio: 16/9; border-radius: 8px; background: #000; }
 .subhead { font-size: 16px; margin: 4px 0 8px; }
 .subhead small { font-weight: 400; color: var(--muted); font-size: 13px; }
-.clip-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+.clip-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 18px; }
 .clip-slot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .clip-slot .drop { flex: 1 1 100%; }
 .clip-slot .drop { margin: 0; }
@@ -177,3 +177,6 @@ select.gvoice { flex: 1; min-width: 260px; }
 .look canvas { width: 100%; aspect-ratio: 16/9; border-radius: 10px; background: #101418; display: block; }
 .look figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
 @media (max-width: 760px) { .look-wrap { grid-template-columns: 1fr; } }
+.thumb-slot img { width: 160px; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; background: #000; }
+.look { position: relative; }
+.look-sound { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,.92); font-size: 14px; padding: 6px 10px; }

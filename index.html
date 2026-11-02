@@ -6,7 +6,7 @@
 <title>인생이야기 영상 제작기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Gowun+Dodum&family=Nanum+Gothic:wght@800&family=Nanum+Myeongjo:wght@800&family=Noto+Sans+KR:wght@700;900&family=Gothic+A1:wght@800&family=Nanum+Pen+Script&family=Gaegu:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=25">
+<link rel="stylesheet" href="app.css?v=27">
 </head>
 <body>
 <header class="top">
@@ -125,7 +125,7 @@
   <!-- 4. 사진 -->
   <section class="card" id="sec-images">
     <div class="card-head"><span class="num">4</span><h2>영상 · 사진 넣기</h2><span class="state" id="img-state"></span></div>
-    <h3 class="subhead">맨 앞 하이라이트 영상 <small>(선택 · 영상 1 → 영상 2가 맨 처음에 나오고, 끝나면 001 사진과 함께 대본 낭독이 시작됩니다)</small></h3>
+    <h3 class="subhead">맨 앞 하이라이트 영상 · 썸네일 <small>(영상 1 → 영상 2가 맨 처음에 나오고, 끝나면 썸네일 사진과 함께 대본 낭독이 시작됩니다)</small></h3>
     <div class="clip-row">
       <div class="clip-slot" data-part="1">
         <label class="drop small"><input type="file" accept="video/*" hidden><strong>영상 1</strong><span class="clip-name">끌어다 놓거나 클릭</span></label>
@@ -135,6 +135,11 @@
       <div class="clip-slot" data-part="2">
         <label class="drop small"><input type="file" accept="video/*" hidden><strong>영상 2</strong><span class="clip-name">끌어다 놓거나 클릭</span></label>
         <video muted playsinline hidden></video>
+        <button class="btn ghost clip-del" hidden>빼기</button>
+      </div>
+      <div class="clip-slot thumb-slot" id="thumb-slot">
+        <label class="drop small"><input type="file" accept="image/*" hidden><strong>썸네일 사진 (001)</strong><span class="clip-name">끌어다 놓거나 클릭 · 파일 이름 상관없음</span></label>
+        <img alt="" hidden>
         <button class="btn ghost clip-del" hidden>빼기</button>
       </div>
     </div>
@@ -171,7 +176,7 @@
   <section class="card" id="sec-build">
     <div class="card-head"><span class="num">5</span><h2>영상 만들기</h2></div>
     <div class="opts">
-      <label><input type="checkbox" id="opt-preview"> 미리보기: 처음 <input type="number" id="opt-preview-n" value="3" min="1" max="999"> 개 장면만</label>
+      <label><input type="checkbox" id="opt-preview"> 미리보기: 처음 <input type="number" id="opt-preview-n" value="1" min="0.5" max="30" step="0.5"> 분만 만들기 <small>(하이라이트 영상 + 낭독 1분)</small></label>
       <label data-mode="google"><input type="checkbox" id="opt-mock"> 무음 테스트 (음성 없이 사진 전환·자막 위치만 확인)</label>
       <label><input type="checkbox" id="opt-sub" checked> 자막 넣기</label>
     </div>
@@ -204,6 +209,11 @@
           <small>바꾸면 오른쪽 미리보기에 바로 보입니다</small>
         </div>
         <div class="ctl">
+          <div class="ctl-h">하이라이트 영상 소리 <b id="opt-clipvol-val">100%</b></div>
+          <input type="range" id="opt-clipvol" min="0" max="150" step="5" value="100" style="width:100%">
+          <small>0% = 소리 없음 · 100% = 원래 크기 · 영상 1·2 자체 소리(효과음 등)</small>
+        </div>
+        <div class="ctl">
           <div class="ctl-h">사진 움직임</div>
           <select id="opt-motion">
             <option value="alt" selected>천천히 확대·축소 (번갈아)</option>
@@ -223,6 +233,7 @@
       </div>
       <figure class="look">
         <canvas id="look" width="1920" height="1080"></canvas>
+        <button class="btn ghost sm look-sound" id="look-sound" type="button">🔈 소리 켜고 보기</button>
         <figcaption>화면 미리보기 — <span id="look-cap"></span> <small>(실제 영상과 같은 비율, 5초마다 다음 사진으로 넘어가는 모습)</small></figcaption>
       </figure>
     </div>
@@ -251,7 +262,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=32"></script>
+<script src="app.js?v=34"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=4"></script>
 </body>
