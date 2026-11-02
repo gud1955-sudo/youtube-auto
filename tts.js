@@ -51,12 +51,21 @@ async function gFetch(path, opts = {}, tries = 5) {
 }
 
 // ── 기존 함수들을 모드에 따라 구글로 돌려쓰기 ──
+// 쉼표에서 확실히 쉬게 하기 ("일흔네 살, 해중리" → "살해중리"로 붙어 읽히는 문제)
+//  - Chirp 3 HD 목소리: markup 의 [pause short]
+//  - 그 밖의 목소리: SSML <break>
+const escXml = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function gInput(text, voice) {
+  if (!/[,，]/.test(text)) return { text };
+  if (/Chirp3-HD|Chirp-HD/i.test(voice || "")) return { markup: text.replace(/([,，])\s*/g, "$1 [pause short] ").trim() };
+  return { ssml: `<speak>${escXml(text).replace(/([,，])\s*/g, '$1<break time="280ms"/> ')}</speak>` };
+}
 const _ttsBody = ttsBody, _ttsRequest = ttsRequest;
 ttsBody = function (text, v, emotion, intensity, prev, next) {
   if (state.mode !== "google") return _ttsBody(text, v, emotion, intensity, prev, next);
   return {
     engine: "google",
-    input: { text },
+    input: gInput(text, v.voice_id),
     voice: { languageCode: GTTS.lang, name: v.voice_id },
     audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: GTTS.sampleRate, speakingRate: +v.speed || 1 },
   };
@@ -72,6 +81,10 @@ ttsRequest = async function (body) {
     if (e.status === 400 && /speaking|rate/i.test(e.detail || "") && req.audioConfig.speakingRate !== 1) {
       const r2 = { ...req, audioConfig: { ...req.audioConfig } }; delete r2.audioConfig.speakingRate;
       j = await gFetch("/v1/text:synthesize", { method: "POST", body: JSON.stringify(r2) });
+    } else if (e.status === 400 && (req.input.markup || req.input.ssml)) {
+      // 쉼 표시를 이 목소리가 지원하지 않으면 → 쉼표 뒤를 줄바꿈으로 바꿔 일반 글자로 한 번 더
+      const plain = (req.input.markup || "").replace(/\s*\[pause[^\]]*\]\s*/g, "\n") || (req.input.ssml || "").replace(/<break[^>]*>/g, "\n").replace(/<\/?speak>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+      j = await gFetch("/v1/text:synthesize", { method: "POST", body: JSON.stringify({ ...req, input: { text: plain } }) });
     } else throw e;
   }
   if (!j?.audioContent) throw new ApiError("구글이 음성을 돌려주지 않았습니다.", false);
