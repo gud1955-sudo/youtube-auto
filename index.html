@@ -187,7 +187,11 @@
         <div class="tm-row"><label>윗줄 색 <input type="color" id="tm-c1" value="#3cff2e"></label><label>아랫줄 색 <input type="color" id="tm-c2" value="#fff200"></label><small>직접 나누고 싶으면 줄바꿈(Enter)</small></div>
         <div class="tm-row">
           <label>글꼴 <select id="tm-font"></select></label>
-          <label>제목 크기 <select id="tm-size"><option value="0.9">작게</option><option value="1" selected>보통</option><option value="1.12">크게</option></select></label>
+          <label>최대 크기 <select id="tm-size"><option value="0.8">보통</option><option value="1" selected>크게</option><option value="1.2">아주 크게</option></select></label>
+        </div>
+        <div class="tm-row">
+          <label>글자 세로로 늘리기 <select id="tm-stretch"><option value="1">안 늘림</option><option value="1.25">조금</option><option value="1.45" selected>많이</option><option value="1.7">아주 많이</option></select></label>
+          <label>제목 높이 <select id="tm-area"><option value="0.38">화면 아래 ⅓</option><option value="0.5" selected>화면 아래 절반</option><option value="0.62">더 많이</option></select></label>
         </div>
         <div class="tm-row">
           <label><input type="checkbox" id="tm-shade"> 아래쪽 살짝 어둡게 (글자 더 잘 보이게)</label>
@@ -301,7 +305,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=40"></script>
+<script src="app.js?v=43"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=6"></script>
 </body>

@@ -850,14 +850,16 @@ function setThumbPhoto(f) {
   drawThumbMaker();
 }
 // 글자 그리기: 검은 테두리 + 채움, 폭에 맞춰 크기 자동 축소
-function tmText(ctx, text, x, y, size, color, align, maxW, font) {
+function tmText(ctx, text, x, y, size, color, align, maxW, font, stretch = 1) {
   if (!text) return size;
   let fs = size; ctx.font = `${font[1]} ${fs}px "${font[0]}", "Malgun Gothic", sans-serif`;
   const w = ctx.measureText(text).width;
   if (w > maxW) { fs = Math.floor(fs * maxW / w); ctx.font = `${font[1]} ${fs}px "${font[0]}", "Malgun Gothic", sans-serif`; }
   ctx.textAlign = align; ctx.textBaseline = "alphabetic"; ctx.lineJoin = "round"; ctx.miterLimit = 2;
-  ctx.lineWidth = Math.max(6, fs * 0.2); ctx.strokeStyle = "#000"; ctx.strokeText(text, x, y);
-  ctx.fillStyle = color; ctx.fillText(text, x, y);
+  ctx.save(); ctx.translate(x, y); ctx.scale(1, stretch);
+  ctx.lineWidth = Math.max(6, fs * 0.2); ctx.strokeStyle = "#000"; ctx.strokeText(text, 0, 0);
+  ctx.fillStyle = color; ctx.fillText(text, 0, 0);
+  ctx.restore();
   return fs;
 }
 // 제목 한 줄을 절반쯤에서 자연스럽게 두 줄로 (쉼표·띄어쓰기 기준, 줄바꿈이 있으면 그대로)
@@ -878,6 +880,30 @@ function splitTitle(text) {
   if (best < 0) { const h = Math.ceil(text.length / 2); return [text.slice(0, h), text.slice(h)]; }
   return [text.slice(0, best).trim(), text.slice(best + 1).trim()];
 }
+// 제목을 n줄로 고르게 (쉼표·접속사 뒤 우선). n=0 이면 줄바꿈 그대로
+function splitTitleN(text, n) {
+  text = text.replace(/[ \t]+\n/g, "\n").trim();
+  if (!text) return [];
+  if (n === 0 || text.includes("\n")) return text.split("\n").map((x) => x.trim()).filter(Boolean);
+  if (n <= 1) return [text];
+  const sp = []; for (let i = 1; i < text.length - 1; i++) if (text[i] === " ") sp.push(i);
+  if (sp.length < n - 1) return n === 2 ? splitTitle(text) : [text];
+  const cuts = []; let from = 0;
+  for (let k = 1; k < n; k++) {
+    const target = from + (text.length - from) / (n - k + 1);
+    let best = -1, bs = Infinity;
+    for (const i of sp) {
+      if (i <= from + 2 || cuts.includes(i)) continue;
+      let sc = Math.abs(i - target);
+      if (/[,，.!?…]/.test(text[i - 1])) sc -= text.length * 0.08;
+      if (/(그런데|그러나|하지만|결국|그리고)$/.test(text.slice(0, i))) sc -= text.length * 0.05;
+      if (sc < bs) { bs = sc; best = i; }
+    }
+    if (best < 0) break; cuts.push(best); from = best + 1;
+  }
+  const out = []; let p = 0; for (const c of cuts) { out.push(text.slice(p, c).trim()); p = c + 1; } out.push(text.slice(p).trim());
+  return out.filter(Boolean);
+}
 const fitSize = (ctx, text, size, maxW, font) => { if (!text) return size; ctx.font = `${font[1]} ${size}px "${font[0]}", sans-serif`; const w = ctx.measureText(text).width; return w > maxW ? Math.floor(size * maxW / w) : size; };
 async function drawThumbMaker() {
   const cv = $("#tm-canvas"); if (!cv) return;
@@ -896,17 +922,28 @@ async function drawThumbMaker() {
   if ($("#tm-shade").checked) { const g = ctx.createLinearGradient(0, H * 0.5, 0, H); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,.55)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
   const font = $("#tm-font").value.split("|"); try { await document.fonts.load(`${font[1]} 60px "${font[0]}"`, "가나다"); } catch { /* 기본 */ }
   const k = +$("#tm-size").value;
-  const [t1, t2] = splitTitle($("#tm-title").value), q = $("#tm-quote").value.trim();
-  const maxW = W - 44;
-  // 두 줄은 같은 크기로 (긴 줄에 맞춤)
-  let fs = Math.round(66 * k);
-  fs = Math.min(fitSize(ctx, t1, fs, maxW, font), fitSize(ctx, t2, fs, maxW, font));
-  const lh = fs * 1.22;
-  const y2 = H - 30, y1 = t2 ? y2 - lh : y2;
-  if (t1) tmText(ctx, t1, W / 2, y1, fs, $("#tm-c1").value, "center", maxW, font);
-  if (t2) tmText(ctx, t2, W / 2, y2, fs, $("#tm-c2").value, "center", maxW, font);
+  const q = $("#tm-quote").value.trim();
+  const maxW = W - 36;
+  const raw = $("#tm-title").value;
+  // 제목은 항상 2줄 (윗줄 초록·아랫줄 노랑). 폭에 맞춰 최대한 크게 + 글자를 위아래로 길게 늘림
+  const lines2 = (raw.includes("\n") ? splitTitleN(raw, 0) : splitTitle(raw)).filter(Boolean);
+  if (lines2.length > 2) lines2.splice(1, lines2.length, lines2.slice(1).join(" "));
+  if (lines2.length) {
+    let fs = Math.round(150 * k);
+    for (const l of lines2) fs = Math.min(fs, fitSize(ctx, l, fs, maxW, font));
+    const maxH = H * (+$("#tm-area").value);
+    const n = lines2.length, gap = 1.06;
+    let st = +$("#tm-stretch").value;                         // 세로로 늘리는 정도
+    st = Math.max(1, Math.min(st, maxH / (n * fs * gap)));    // 정해 둔 높이를 넘지 않게
+    if (n * fs * gap * st > maxH) fs = Math.floor(maxH / (n * gap * st));
+    const lh = fs * gap * st;
+    lines2.forEach((l, i) => {
+      const y = H - 24 - (n - 1 - i) * lh;
+      tmText(ctx, l, W / 2, y, fs, i === 0 ? $("#tm-c1").value : $("#tm-c2").value, "center", maxW, font, st);
+    });
+  }
   if (q) {
-    const qs = fitSize(ctx, q, Math.round(46 * k), W * 0.9, font);
+    const qs = fitSize(ctx, q, Math.round(62 * k), W * 0.9, font);
     ctx.font = `${font[1]} ${qs}px "${font[0]}", sans-serif`;
     const qw = ctx.measureText(q).width;
     if (!tm.q) tm.q = { x: (W - 60 - qw / 2) / W, y: (72 - qs * 0.35) / H }; // 기본: 오른쪽 위
@@ -915,7 +952,7 @@ async function drawThumbMaker() {
     tm.qBox = { x: cx - qw / 2 - 12, y: cy - qs * 0.7, w: qw + 24, h: qs * 1.4 };
     if (tm.dragging || tm.hover) { ctx.save(); ctx.setLineDash([10, 6]); ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.strokeRect(tm.qBox.x, tm.qBox.y, tm.qBox.w, tm.qBox.h); ctx.restore(); }
   } else tm.qBox = null;
-  $("#tm-state").textContent = f && (t1 || t2) ? "✓ 준비됨" : ""; $("#tm-state").className = "state ok";
+  $("#tm-state").textContent = f && raw.trim() ? "✓ 준비됨" : ""; $("#tm-state").className = "state ok";
 }
 function initThumbMaker() {
   const cv = $("#tm-canvas"); if (!cv) return;
@@ -925,9 +962,9 @@ function initThumbMaker() {
   drop.ondragleave = () => drop.classList.remove("over");
   drop.ondrop = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("over"); setThumbPhoto(e.dataTransfer.files[0]); };
   let deb; const redraw = () => { clearTimeout(deb); deb = setTimeout(drawThumbMaker, 60); };
-  ["#tm-quote", "#tm-title", "#tm-c1", "#tm-c2", "#tm-font", "#tm-size", "#tm-shade", "#tm-posy"].forEach((id) => { $(id).addEventListener("input", redraw); $(id).addEventListener("change", redraw); });
+  ["#tm-quote", "#tm-title", "#tm-stretch", "#tm-area", "#tm-c1", "#tm-c2", "#tm-font", "#tm-size", "#tm-shade", "#tm-posy"].forEach((id) => { $(id).addEventListener("input", redraw); $(id).addEventListener("change", redraw); });
   // 글꼴·색·크기는 저장 (제목·대사는 매번 새로)
-  for (const [id, key] of [["#tm-font", "tmFont"], ["#tm-size", "tmSize"], ["#tm-c1", "tmC1"], ["#tm-c2", "tmC2"], ["#tm-shade", "tmShade"]]) {
+  for (const [id, key] of [["#tm-font", "tmFont"], ["#tm-size", "tmSize2"], ["#tm-stretch", "tmStretch"], ["#tm-area", "tmArea"], ["#tm-c1", "tmC1"], ["#tm-c2", "tmC2"], ["#tm-shade", "tmShade"]]) {
     const e = $(id); store.get(key, null).then((v) => { if (v != null) { if (e.type === "checkbox") e.checked = v; else e.value = v; redraw(); } });
     e.addEventListener("change", () => store.set(key, e.type === "checkbox" ? e.checked : e.value));
   }
