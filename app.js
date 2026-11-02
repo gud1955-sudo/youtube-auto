@@ -53,6 +53,22 @@ const el = (tag, attrs = {}, ...kids) => {
   return e;
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// 라이브러리가 페이지 열 때 못 불러와졌으면(서버 일시 오류 등) 다시 불러오기 → 안 되면 예비 서버
+const LIBS = {
+  Mp4Muxer: ["lib/mp4-muxer.js", "https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.js", "https://unpkg.com/mp4-muxer@5.2.2/build/mp4-muxer.js"],
+  JSZip: ["lib/jszip.min.js", "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js", "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"],
+};
+async function ensureLib(name) {
+  if (typeof globalThis[name] !== "undefined") return true;
+  for (const [i, url] of LIBS[name].entries()) {
+    for (let k = 0; k < (i === 0 ? 2 : 1); k++) {
+      await new Promise((res) => { const sc = document.createElement("script"); sc.src = i === 0 ? `${url}?r=${Date.now()}` : url; sc.onload = res; sc.onerror = res; document.head.append(sc); });
+      if (typeof globalThis[name] !== "undefined") return true;
+      await sleep(800);
+    }
+  }
+  return false;
+}
 const clock = (t) => {
   t = Math.max(0, Math.floor(t));
   const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
@@ -691,7 +707,7 @@ async function unzipImages(files) {
   const out = [];
   for (const f of files) {
     if (!/\.zip$/i.test(f.name) && f.type !== "application/zip" && f.type !== "application/x-zip-compressed") { out.push(f); continue; }
-    if (typeof JSZip === "undefined") { toast("압축 파일을 열 수 없습니다. 압축을 푼 뒤 사진을 넣어주세요", 6000); continue; }
+    if (!(await ensureLib("JSZip"))) { toast("압축 파일을 열 수 없습니다. 압축을 푼 뒤 사진을 넣어주세요", 6000); continue; }
     toast(`${f.name} 압축 푸는 중…`, 8000);
     const zip = await JSZip.loadAsync(f);
     const entries = Object.values(zip.files).filter((z) => !z.dir && /\.(png|jpe?g|webp|mp4|webm|mov|m4v)$/i.test(z.name) && !/__MACOSX/.test(z.name));
@@ -1297,6 +1313,7 @@ function drawSubtitle(ctx, cue, size) {
 async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }) {
   const { W, H, fps, sampleRate } = CFG;
   const codecs = await pickCodecs();
+  if (!(await ensureLib("Mp4Muxer"))) throw new Error("영상 저장 도구를 불러오지 못했습니다. 인터넷 연결을 확인하고 잠시 뒤 새로고침(Ctrl+Shift+R) 후 다시 눌러 주세요.");
   const target = writable ? new Mp4Muxer.FileSystemWritableFileStreamTarget(writable) : new Mp4Muxer.ArrayBufferTarget();
   const muxer = new Mp4Muxer.Muxer({
     target,
