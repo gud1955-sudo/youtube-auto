@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Bagel+Fat+One&family=Gasoek+One&family=Noto+Sans+KR:wght@700;900&family=Gothic+A1:wght@800&family=Nanum+Gothic:wght@800&family=Sunflower:wght@700&family=Gowun+Dodum&family=Dongle:wght@700&family=Gugi&family=Yeon+Sung&family=Noto+Serif+KR:wght@900&family=Nanum+Myeongjo:wght@800&family=Hahmlet:wght@800&family=Song+Myung&family=Dokdo&family=East+Sea+Dokdo&family=Gaegu:wght@700&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="lib/fonts/fonts.css?v=1">
-<link rel="stylesheet" href="app.css?v=30">
+<link rel="stylesheet" href="app.css?v=32">
 </head>
 <body>
 <header class="top">
@@ -182,16 +182,29 @@
           <input type="file" id="tm-input" accept="image/*" hidden>
           <strong>썸네일 사진 넣기</strong><span id="tm-name">끌어다 놓거나 클릭 · 넣으면 영상의 001 사진으로도 등록됩니다</span>
         </label>
-        <label class="tm-field"><span>위 대사 <small>(흰 글씨 · 미리보기에서 끌어서 위치 이동) <button class="btn ghost sm" id="tm-qreset" type="button" style="font-size:12px">위치 처음대로</button></small></span><input type="text" id="tm-quote" placeholder="예: 내 사람 옆에서 비켜요!"></label>
-        <label class="tm-field"><span>제목 <small>(한 번에 입력 → 자동으로 두 줄로 나눔)</small></span><textarea id="tm-title" rows="2" placeholder="예: 남편 앞에서 내연녀에게 뺨을 맞은 임신부, 그런데 달려온 비서가 외친 한마디에 모두가 굳었습니다"></textarea></label>
+        <label class="tm-field"><span><span>위 대사 <small>(흰 글씨 · 미리보기에서 끌어서 이동)</small></span><button class="btn ghost sm" id="tm-qreset" type="button" style="font-size:12px;padding:3px 8px">위치 처음대로</button></span><input type="text" id="tm-quote" placeholder="예: 내 사람 옆에서 비켜요!"></label>
+        <div class="tm-field"><span>제목 3개 <small>(한 번에 입력 → 자동 두 줄 · 고른 제목이 미리보기에 보임)</small></span></div>
+        <div class="tm-title-row on" data-i="1">
+          <div class="tm-title-h"><label><input type="radio" name="tm-pick" value="1" checked> 제목 1</label><button class="btn ghost sm tm-dl" type="button" data-i="1">⬇ 다운로드</button></div>
+          <textarea id="tm-title1" class="tm-title" rows="2" placeholder="예: 남편 앞에서 내연녀에게 뺨을 맞은 임신부, 그런데 달려온 비서가 외친 한마디에 모두가 굳었습니다"></textarea>
+        </div>
+        <div class="tm-title-row" data-i="2">
+          <div class="tm-title-h"><label><input type="radio" name="tm-pick" value="2"> 제목 2</label><button class="btn ghost sm tm-dl" type="button" data-i="2">⬇ 다운로드</button></div>
+          <textarea id="tm-title2" class="tm-title" rows="2" placeholder="두 번째 제목 (다른 버전)"></textarea>
+        </div>
+        <div class="tm-title-row" data-i="3">
+          <div class="tm-title-h"><label><input type="radio" name="tm-pick" value="3"> 제목 3</label><button class="btn ghost sm tm-dl" type="button" data-i="3">⬇ 다운로드</button></div>
+          <textarea id="tm-title3" class="tm-title" rows="2" placeholder="세 번째 제목 (다른 버전)"></textarea>
+        </div>
+
         <div class="tm-row"><label>윗줄 색 <input type="color" id="tm-c1" value="#3cff2e"></label><label>아랫줄 색 <input type="color" id="tm-c2" value="#fff200"></label><small>직접 나누고 싶으면 줄바꿈(Enter)</small></div>
         <div class="tm-row">
           <label>글꼴 <select id="tm-font"></select></label>
           <label>최대 크기 <select id="tm-size"><option value="0.8">보통</option><option value="1" selected>크게</option><option value="1.2">아주 크게</option></select></label>
         </div>
         <div class="tm-row">
-          <label>글자 세로로 늘리기 <select id="tm-stretch"><option value="1">안 늘림</option><option value="1.25">조금</option><option value="1.45" selected>많이</option><option value="1.7">아주 많이</option></select></label>
-          <label>제목 높이 <select id="tm-area"><option value="0.38">화면 아래 ⅓</option><option value="0.5" selected>화면 아래 절반</option><option value="0.62">더 많이</option></select></label>
+          <label>글자 세로로 늘리기 <select id="tm-stretch"><option value="fill" selected>제목 높이를 꽉 채우게 (최대)</option><option value="3">3배</option><option value="2.5">2.5배</option><option value="2">2배</option><option value="1.5">1.5배</option><option value="1">안 늘림</option></select></label>
+          <label>제목 높이 <select id="tm-area"><option value="0.38">화면 아래 ⅓</option><option value="0.45">화면 아래 45%</option><option value="0.52" selected>화면 아래 절반</option><option value="0.6">화면 아래 60%</option></select></label>
         </div>
         <div class="tm-row">
           <label><input type="checkbox" id="tm-shade"> 아래쪽 살짝 어둡게 (글자 더 잘 보이게)</label>
@@ -200,7 +213,7 @@
           <label>사진 위치 <input type="range" id="tm-posy" min="0" max="100" value="50"> <small>위 ↔ 아래</small></label>
         </div>
         <div class="row" style="margin-top:6px">
-          <button class="btn" id="tm-save" type="button">썸네일 저장 (PNG)</button>
+          <button class="btn" id="tm-save" type="button">⬇ 3개 모두 다운로드</button>
         </div>
         <small class="hint">유튜브 권장 크기 1280×720으로 저장됩니다. 제목이 길면 글자 크기가 자동으로 줄어듭니다.</small>
       </div>
@@ -305,7 +318,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=43"></script>
+<script src="app.js?v=46"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=6"></script>
 </body>

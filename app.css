@@ -195,4 +195,9 @@ select.gvoice { flex: 1; min-width: 260px; }
 .tm-look canvas { width: 100%; aspect-ratio: 16/9; border-radius: 10px; background: #222; display: block; }
 @media (max-width: 860px) { .tm-wrap { grid-template-columns: 1fr; } }
 .tm-row input[type=color] { width: 34px; height: 24px; border: 0; padding: 0; background: none; cursor: pointer; vertical-align: middle; }
-#tm-title { height: 72px; min-height: 56px; }
+
+.tm-title-row { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: #fff; }
+.tm-title-row.on { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(178,58,43,.12); }
+.tm-title-h { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.tm-title-h .btn { font-size: 13px; padding: 3px 10px; }
+.tm-title-row textarea.tm-title { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; height: 62px !important; min-height: 0 !important; resize: vertical; }
