@@ -192,7 +192,11 @@ async function gPreview(btn) {
   if (!g.voice) return toast("먼저 목소리를 고르세요");
   btn.disabled = true; const old = btn.textContent; btn.textContent = "…";
   try {
-    const body = ttsBody(GTTS.sample, { voice_id: g.voice, speed: g.speed }, "normal", 1, "", "");
+    // 대본이 있으면 대본 앞부분(약 200자)을 읽어 줌
+    let text = GTTS.sample;
+    const lines = (state.scenes || []).flatMap((sc) => sc.lines.map((l) => l.text)).filter(Boolean);
+    if (lines.length) { text = ""; for (const l of lines) { if (text && (text + " " + l).length > 220) break; text += (text ? " " : "") + l; } text = text.slice(0, 400); }
+    const body = ttsBody(text, { voice_id: g.voice, speed: g.speed }, "normal", 1, "", "");
     const key = "gpv:" + await sha1(JSON.stringify(body));
     let rec = await idb.get(key);
     if (!rec) { rec = { blob: await ttsRequest(body) }; await idb.put(key, rec); }
