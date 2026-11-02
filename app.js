@@ -1234,26 +1234,60 @@ function initPreview() {
   const ctx = cv.getContext("2d"); ctx.imageSmoothingQuality = "high";
   loadSubFont();
   const CYCLE = 5; let on = false, t0 = performance.now(), raf = 0;
+  // 하이라이트 영상(영상 1·2)이 있으면 미리보기도 영상 1 → 영상 2 → 사진 순서로
+  const pvVids = new Map(); // File → {el, url}
+  const clipList = () => {
+    const first = state.scenes[0]?.num ?? 1;
+    const list = state.videos.get(first) || [...state.videos.values()][0] || [];
+    return list.map((x) => x.file);
+  };
+  const vidFor = (f) => {
+    if (!pvVids.has(f)) {
+      const el = document.createElement("video"); el.muted = true; el.playsInline = true; el.preload = "auto";
+      const url = URL.createObjectURL(f); el.src = url; pvVids.set(f, { el, url });
+    }
+    return pvVids.get(f).el;
+  };
+  let seg = -1, segStart = 0, lastKey = "";
   const frame = async (now) => {
     if (!on) return;
-    const t = Math.max(0, (now - t0) / 1000), si = Math.floor(t / CYCLE) % 2, p = (t % CYCLE) / CYCLE;
-    const img = await pvSample();
+    const clips = clipList();
+    const key = clips.map((f) => f.name + f.size).join("|");
+    if (key !== lastKey) { lastKey = key; seg = -1; for (const [f, v] of pvVids) if (!clips.includes(f)) { v.el.pause(); URL.revokeObjectURL(v.url); pvVids.delete(f); } }
+    const nSeg = clips.length + 2; // 영상들 + 사진 2장
+    const segDur = (k) => (k < clips.length ? (vidFor(clips[k]).duration || 8) : CYCLE);
+    if (seg < 0) { seg = 0; segStart = now; if (clips.length) { const v = vidFor(clips[0]); v.currentTime = 0; v.play().catch(() => {}); } }
+    while ((now - segStart) / 1000 >= segDur(seg)) {
+      segStart += segDur(seg) * 1000; seg = (seg + 1) % nSeg;
+      if (seg < clips.length) { const v = vidFor(clips[seg]); v.currentTime = 0; v.play().catch(() => {}); }
+    }
+    const t = Math.max(0, (now - t0) / 1000), ts = Math.max(0, (now - segStart) / 1000);
     ctx.fillStyle = "#101418"; ctx.fillRect(0, 0, CFG.W, CFG.H);
-    drawMoving(ctx, img, curMotion(), p, si);
+    let capNote = "";
+    if (seg < clips.length) {
+      const v = vidFor(clips[seg]);
+      if (v.readyState >= 2) { const s = Math.max(CFG.W / v.videoWidth, CFG.H / v.videoHeight), dw = v.videoWidth * s, dh = v.videoHeight * s; ctx.drawImage(v, (CFG.W - dw) / 2, (CFG.H - dh) / 2, dw, dh); }
+      capNote = `🎬 영상 ${seg + 1} 재생 중 · `;
+    } else {
+      const img = await pvSample();
+      const si = seg - clips.length, p = Math.min(1, ts / CYCLE);
+      drawMoving(ctx, img, curMotion(), p, si);
+      if (clips.length) capNote = "영상이 끝나고 사진 · ";
+    }
     if ($("#opt-sub").checked) {
       const size = +$("#opt-subsize").value;
       const parts = splitSubtitle(pvText(), lineMaxFor(size));
       const part = parts[Math.floor(t / 2.5) % parts.length] || parts[0];
       if (part) drawSubtitle(ctx, { lines: part.lines, dialog: false }, size);
     }
-    $("#look-cap").textContent = `${MOTIONS[curMotion().kind]} · 자막 ${$("#opt-font").selectedOptions[0].text} ${$("#opt-subsize").value}pt`;
+    $("#look-cap").textContent = `${capNote}${MOTIONS[curMotion().kind]} · 자막 ${$("#opt-font").selectedOptions[0].text} ${$("#opt-subsize").value}pt`;
     raf = requestAnimationFrame(frame);
   };
-  const start = () => { if (!on) { on = true; t0 = performance.now(); raf = requestAnimationFrame(frame); } };
-  const stop = () => { on = false; cancelAnimationFrame(raf); };
+  const start = () => { if (!on) { on = true; t0 = performance.now(); seg = -1; raf = requestAnimationFrame(frame); } };
+  const stop = () => { on = false; cancelAnimationFrame(raf); for (const v of pvVids.values()) v.el.pause(); };
   new IntersectionObserver((es) => (es[0].isIntersecting ? start() : stop())).observe(cv);
   // 설정 저장
-  const keep = (id, key) => { const e = $(id); e.addEventListener("input", () => { store.set(key, e.value); if (id === "#opt-motion") t0 = performance.now(); }); };
+  const keep = (id, key) => { const e = $(id); e.addEventListener("input", () => { store.set(key, e.value); if (id === "#opt-motion") { t0 = performance.now(); seg = -1; } }); };
   keep("#opt-subsize", "subSize"); keep("#opt-motion", "motion"); keep("#opt-motion-str", "motionStr"); keep("#opt-font", "subFont");
   $("#opt-font").addEventListener("input", loadSubFont);
   const out = $("#opt-subsize-val"); const sync = () => (out.textContent = $("#opt-subsize").value + "pt");
@@ -1350,9 +1384,12 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
         const v = document.createElement("video");
         v.muted = true; v.playsInline = true; v.preload = "auto";
         const url = URL.createObjectURL(file);
-        v.onloadeddata = () => res({ el: v, dur: v.duration || 0, url });
-        v.onerror = () => { toast(`영상 ${file.name} 을 열 수 없습니다 (mp4 권장)`, 6000); res(null); };
-        v.src = url;
+        let done = false;
+        const ok = () => { if (!done && v.readyState >= 2) { done = true; res({ el: v, dur: v.duration || 0, url }); } };
+        v.onloadeddata = ok; v.oncanplay = ok;
+        v.onerror = () => { if (!done) { done = true; toast(`영상 ${file.name} 을 열 수 없습니다 (mp4 권장)`, 6000); res(null); } };
+        setTimeout(() => { if (!done) { done = true; toast(`영상 ${file.name} 을 불러오는 데 너무 오래 걸려 뺐습니다`, 6000); res(null); } }, 20000);
+        v.src = url; v.load();
       }))).then((a) => a.filter(Boolean)));
     }
     return vidCache.get(i);
