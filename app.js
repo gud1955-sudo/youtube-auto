@@ -916,7 +916,7 @@ async function build() {
   const previewN = Math.max(1, +$("#opt-preview-n").value || 3);
   const useSub = $("#opt-sub").checked, useZoom = curMotion(), subSize = +$("#opt-subsize").value;
   CFG.lineMax = lineMaxFor(subSize);
-  try { await document.fonts.load(`${subSize}px "Jua"`, "가나다"); } catch { /* 기본 글꼴 */ }
+  try { await loadSubFont(); } catch { /* 기본 글꼴 */ }
 
   // 확인
   const vrew = state.mode === "vrew";
@@ -1216,7 +1216,7 @@ function pvText() {
 function initPreview() {
   const cv = $("#look"); if (!cv) return;
   const ctx = cv.getContext("2d"); ctx.imageSmoothingQuality = "high";
-  document.fonts?.load(`80px "Jua"`, "가나다").catch(() => {});
+  loadSubFont();
   const CYCLE = 5; let on = false, t0 = performance.now(), raf = 0;
   const frame = async (now) => {
     if (!on) return;
@@ -1230,7 +1230,7 @@ function initPreview() {
       const part = parts[Math.floor(t / 2.5) % parts.length] || parts[0];
       if (part) drawSubtitle(ctx, { lines: part.lines, dialog: false }, size);
     }
-    $("#look-cap").textContent = `${MOTIONS[curMotion().kind]} · 자막 ${$("#opt-subsize").value}pt`;
+    $("#look-cap").textContent = `${MOTIONS[curMotion().kind]} · 자막 ${$("#opt-font").selectedOptions[0].text} ${$("#opt-subsize").value}pt`;
     raf = requestAnimationFrame(frame);
   };
   const start = () => { if (!on) { on = true; t0 = performance.now(); raf = requestAnimationFrame(frame); } };
@@ -1238,14 +1238,17 @@ function initPreview() {
   new IntersectionObserver((es) => (es[0].isIntersecting ? start() : stop())).observe(cv);
   // 설정 저장
   const keep = (id, key) => { const e = $(id); e.addEventListener("input", () => { store.set(key, e.value); if (id === "#opt-motion") t0 = performance.now(); }); };
-  keep("#opt-subsize", "subSize"); keep("#opt-motion", "motion"); keep("#opt-motion-str", "motionStr");
+  keep("#opt-subsize", "subSize"); keep("#opt-motion", "motion"); keep("#opt-motion-str", "motionStr"); keep("#opt-font", "subFont");
+  $("#opt-font").addEventListener("input", loadSubFont);
   const out = $("#opt-subsize-val"); const sync = () => (out.textContent = $("#opt-subsize").value + "pt");
   $("#opt-subsize").addEventListener("input", sync);
   $("#subsize-minus").onclick = () => { const e = $("#opt-subsize"); e.value = +e.value - 2; e.dispatchEvent(new Event("input")); };
   $("#subsize-plus").onclick = () => { const e = $("#opt-subsize"); e.value = +e.value + 2; e.dispatchEvent(new Event("input")); };
   (async () => {
     $("#opt-subsize").value = await store.get("subSize", 86); $("#opt-motion").value = await store.get("motion", "alt");
-    $("#opt-motion-str").value = await store.get("motionStr", "1.08"); sync();
+    $("#opt-motion-str").value = await store.get("motionStr", "1.08");
+    const sf = await store.get("subFont", "Jua|400"); if ([...$("#opt-font").options].some((o) => o.value === sf)) $("#opt-font").value = sf;
+    loadSubFont(); sync();
   })();
 }
 
@@ -1262,17 +1265,20 @@ async function loadBitmap(file, zoom) {
   return bmp;
 }
 
-const SUB_FONT = `"Jua", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+// 자막 글꼴 (값 = "글꼴이름|굵기")
+const subFontPick = () => ($("#opt-font")?.value || "Jua|400").split("|");
+const subFontCss = (px) => { const [fam, w] = subFontPick(); return `${w} ${px}px "${fam}", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`; };
+const loadSubFont = () => { const [fam, w] = subFontPick(); return document.fonts?.load(`${w} 80px "${fam}"`, "가나다라 한글").catch(() => {}); };
 // 자막 한 줄 글자 수 (글자 크기에 맞춰 화면 폭 안에 들어가게)
 const lineMaxFor = (size) => Math.max(14, Math.min(26, Math.floor((CFG.W - 240) / (size * 0.95))));
 function drawSubtitle(ctx, cue, size) {
   const { W, H } = CFG;
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   const maxW = W - 200;
-  ctx.font = `${size}px ${SUB_FONT}`;
+  ctx.font = subFontCss(size);
   let fs = size;
   const wMax = Math.max(...cue.lines.map((l) => ctx.measureText(l).width));
-  if (wMax > maxW) { fs = Math.floor(size * maxW / wMax); ctx.font = `${fs}px ${SUB_FONT}`; }
+  if (wMax > maxW) { fs = Math.floor(size * maxW / wMax); ctx.font = subFontCss(fs); }
   const lh = Math.round(fs * 1.2);
   // 화면 폭 가득한 반투명 회색 띠 (구독·좋아요 영상과 같은 모양)
   const bh = lh * cue.lines.length + fs * 0.55;
