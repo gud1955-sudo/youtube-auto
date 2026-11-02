@@ -180,3 +180,16 @@ select.gvoice { flex: 1; min-width: 260px; }
 .thumb-slot img { width: 160px; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; background: #000; }
 .look { position: relative; }
 .look-sound { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,.92); font-size: 14px; padding: 6px 10px; }
+.tm-wrap { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+.tm-ctl { display: flex; flex-direction: column; gap: 10px; }
+.tm-ctl .drop { margin: 0; }
+#tm-drop.has { border-style: solid; border-color: #2e8b57; background: #eef7f1; }
+.tm-field { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 14px; }
+.tm-field span { display: flex; align-items: center; justify-content: space-between; }
+.tm-field small { font-weight: 400; color: var(--muted); }
+.tm-field input[type=text] { font: inherit; font-weight: 400; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.tm-field input[type=color] { width: 34px; height: 24px; border: 0; padding: 0; background: none; cursor: pointer; }
+.tm-row { display: flex; flex-wrap: wrap; gap: 12px; font-size: 14px; align-items: center; }
+.tm-row select { font: inherit; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); }
+.tm-look canvas { width: 100%; aspect-ratio: 16/9; border-radius: 10px; background: #222; display: block; }
+@media (max-width: 860px) { .tm-wrap { grid-template-columns: 1fr; } }

@@ -6,7 +6,7 @@
 <title>인생이야기 영상 제작기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Gowun+Dodum&family=Nanum+Gothic:wght@800&family=Nanum+Myeongjo:wght@800&family=Noto+Sans+KR:wght@700;900&family=Gothic+A1:wght@800&family=Nanum+Pen+Script&family=Gaegu:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=27">
+<link rel="stylesheet" href="app.css?v=28">
 </head>
 <body>
 <header class="top">
@@ -172,6 +172,43 @@
     </div>
   </section>
 
+  <!-- 썸네일 만들기 -->
+  <section class="card" id="sec-thumb">
+    <div class="card-head"><span class="num">5</span><h2>썸네일 만들기</h2><span class="state" id="tm-state"></span></div>
+    <div class="tm-wrap">
+      <div class="tm-ctl">
+        <label class="drop small" id="tm-drop">
+          <input type="file" id="tm-input" accept="image/*" hidden>
+          <strong>썸네일 사진 넣기</strong><span id="tm-name">끌어다 놓거나 클릭 · 넣으면 영상의 001 사진으로도 등록됩니다</span>
+        </label>
+        <label class="tm-field"><span>위 대사 <small>(오른쪽 위, 흰 글씨)</small></span><input type="text" id="tm-quote" placeholder="예: 내 사람 옆에서 비켜요!"></label>
+        <label class="tm-field"><span>제목 1줄 <input type="color" id="tm-c1" value="#3cff2e"></span><input type="text" id="tm-t1" placeholder="예: 남편 앞에서 내연녀에게 뺨을 맞은 임신부, 그런데"></label>
+        <label class="tm-field"><span>제목 2줄 <input type="color" id="tm-c2" value="#fff200"></span><input type="text" id="tm-t2" placeholder="예: 달려온 비서가 외친 한마디에 모두가 굳었습니다"></label>
+        <div class="tm-row">
+          <label>글꼴 <select id="tm-font">
+            <option value="Jua|400" selected>주아</option><option value="Do Hyeon|400">도현</option><option value="Black Han Sans|400">검은고딕</option>
+            <option value="Noto Sans KR|900">본고딕 아주 굵게</option><option value="Gothic A1|800">고딕 A1 굵게</option>
+          </select></label>
+          <label>제목 크기 <select id="tm-size"><option value="0.9">작게</option><option value="1" selected>보통</option><option value="1.12">크게</option></select></label>
+        </div>
+        <div class="tm-row">
+          <label><input type="checkbox" id="tm-shade"> 아래쪽 살짝 어둡게 (글자 더 잘 보이게)</label>
+        </div>
+        <div class="tm-row">
+          <label>사진 위치 <input type="range" id="tm-posy" min="0" max="100" value="50"> <small>위 ↔ 아래</small></label>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button class="btn" id="tm-save" type="button">썸네일 저장 (PNG)</button>
+        </div>
+        <small class="hint">유튜브 권장 크기 1280×720으로 저장됩니다. 제목이 길면 글자 크기가 자동으로 줄어듭니다.</small>
+      </div>
+      <figure class="look tm-look">
+        <canvas id="tm-canvas" width="1280" height="720"></canvas>
+        <figcaption>썸네일 미리보기 (실제 저장 모습)</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <!-- 5. 만들기 -->
   <section class="card" id="sec-build">
     <div class="card-head"><span class="num">5</span><h2>영상 만들기</h2></div>
@@ -278,7 +315,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=35"></script>
+<script src="app.js?v=36"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=5"></script>
 </body>

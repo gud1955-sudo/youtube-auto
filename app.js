@@ -768,6 +768,7 @@ function renderGrid() {
   // 썸네일 칸에 넣은 사진은 항상 첫 장면에 (대본을 나중에 넣어 번호가 바뀌어도)
   if (state.thumbFixed && state.images.get(clipScene()) !== state.thumbFixed) state.images.set(clipScene(), state.thumbFixed);
   drawThumbSlot?.();
+  if (state.images.get(clipScene()) !== tm.src) drawThumbMaker();
   const g = $("#grid"); g.innerHTML = "";
   const st = $("#img-state");
   if (!state.scenes.length) {
@@ -839,6 +840,79 @@ function drawClips() {
     v.hidden = !f; slot.querySelector(".clip-del").hidden = !f;
   });
 }
+// ───────── 썸네일 만들기 (사진 + 위 대사 + 제목 2줄 → 1280×720 PNG) ─────────
+const tm = { bmp: null, src: null };
+function setThumbPhoto(f) {
+  if (!f) return;
+  if (!(f.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(f.name))) return toast("사진 파일을 넣어 주세요");
+  state.images.set(clipScene(), f); state.thumbFixed = f;
+  if (state.auto) onScriptChange(); else renderGrid();
+  drawThumbMaker();
+}
+// 글자 그리기: 검은 테두리 + 채움, 폭에 맞춰 크기 자동 축소
+function tmText(ctx, text, x, y, size, color, align, maxW, font) {
+  if (!text) return size;
+  let fs = size; ctx.font = `${font[1]} ${fs}px "${font[0]}", "Malgun Gothic", sans-serif`;
+  const w = ctx.measureText(text).width;
+  if (w > maxW) { fs = Math.floor(fs * maxW / w); ctx.font = `${font[1]} ${fs}px "${font[0]}", "Malgun Gothic", sans-serif`; }
+  ctx.textAlign = align; ctx.textBaseline = "alphabetic"; ctx.lineJoin = "round"; ctx.miterLimit = 2;
+  ctx.lineWidth = Math.max(6, fs * 0.2); ctx.strokeStyle = "#000"; ctx.strokeText(text, x, y);
+  ctx.fillStyle = color; ctx.fillText(text, x, y);
+  return fs;
+}
+const fitSize = (ctx, text, size, maxW, font) => { if (!text) return size; ctx.font = `${font[1]} ${size}px "${font[0]}", sans-serif`; const w = ctx.measureText(text).width; return w > maxW ? Math.floor(size * maxW / w) : size; };
+async function drawThumbMaker() {
+  const cv = $("#tm-canvas"); if (!cv) return;
+  const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  const f = state.images.get(clipScene()) || null;
+  if (f !== tm.src) { tm.src = f; tm.bmp?.close?.(); tm.bmp = f ? await createImageBitmap(f).catch(() => null) : null; }
+  const drop = $("#tm-drop"); drop.classList.toggle("has", !!f); $("#tm-name").textContent = f ? "✓ " + f.name + " (영상 001 사진으로도 등록됨)" : "끌어다 놓거나 클릭 · 넣으면 영상의 001 사진으로도 등록됩니다";
+  ctx.fillStyle = "#2a2f36"; ctx.fillRect(0, 0, W, H);
+  if (tm.bmp) {
+    const b = tm.bmp, s = Math.max(W / b.width, H / b.height), dw = b.width * s, dh = b.height * s;
+    const py = +$("#tm-posy").value / 100;
+    ctx.drawImage(b, (W - dw) / 2, (H - dh) * py, dw, dh);
+  } else {
+    ctx.fillStyle = "rgba(255,255,255,.5)"; ctx.font = "32px sans-serif"; ctx.textAlign = "center"; ctx.fillText("썸네일 사진을 넣어 주세요", W / 2, H / 2 - 40);
+  }
+  if ($("#tm-shade").checked) { const g = ctx.createLinearGradient(0, H * 0.5, 0, H); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,.55)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
+  const font = $("#tm-font").value.split("|"); try { await document.fonts.load(`${font[1]} 60px "${font[0]}"`, "가나다"); } catch { /* 기본 */ }
+  const k = +$("#tm-size").value;
+  const t1 = $("#tm-t1").value.trim(), t2 = $("#tm-t2").value.trim(), q = $("#tm-quote").value.trim();
+  const maxW = W - 44;
+  // 두 줄은 같은 크기로 (긴 줄에 맞춤)
+  let fs = Math.round(66 * k);
+  fs = Math.min(fitSize(ctx, t1, fs, maxW, font), fitSize(ctx, t2, fs, maxW, font));
+  const lh = fs * 1.22;
+  const y2 = H - 30, y1 = t2 ? y2 - lh : y2;
+  if (t1) tmText(ctx, t1, W / 2, y1, fs, $("#tm-c1").value, "center", maxW, font);
+  if (t2) tmText(ctx, t2, W / 2, y2, fs, $("#tm-c2").value, "center", maxW, font);
+  if (q) tmText(ctx, q, W - 60, 72, Math.round(46 * k), "#ffffff", "right", W * 0.6, font);
+  $("#tm-state").textContent = f && (t1 || t2) ? "✓ 준비됨" : ""; $("#tm-state").className = "state ok";
+}
+function initThumbMaker() {
+  const cv = $("#tm-canvas"); if (!cv) return;
+  const inp = $("#tm-input"), drop = $("#tm-drop");
+  inp.onchange = (e) => { setThumbPhoto(e.target.files[0]); e.target.value = ""; };
+  drop.ondragover = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("over"); setThumbPhoto(e.dataTransfer.files[0]); };
+  let deb; const redraw = () => { clearTimeout(deb); deb = setTimeout(drawThumbMaker, 60); };
+  ["#tm-quote", "#tm-t1", "#tm-t2", "#tm-c1", "#tm-c2", "#tm-font", "#tm-size", "#tm-shade", "#tm-posy"].forEach((id) => { $(id).addEventListener("input", redraw); $(id).addEventListener("change", redraw); });
+  // 글꼴·색·크기는 저장 (제목·대사는 매번 새로)
+  for (const [id, key] of [["#tm-font", "tmFont"], ["#tm-size", "tmSize"], ["#tm-c1", "tmC1"], ["#tm-c2", "tmC2"], ["#tm-shade", "tmShade"]]) {
+    const e = $(id); store.get(key, null).then((v) => { if (v != null) { if (e.type === "checkbox") e.checked = v; else e.value = v; redraw(); } });
+    e.addEventListener("change", () => store.set(key, e.type === "checkbox" ? e.checked : e.value));
+  }
+  $("#tm-save").onclick = async () => {
+    await drawThumbMaker();
+    if (!state.images.get(clipScene())) return toast("썸네일 사진을 먼저 넣어 주세요");
+    cv.toBlob((b) => { const d = new Date().toISOString().slice(0, 10).replace(/-/g, ""); download(`썸네일_${d}.png`, b); }, "image/png");
+  };
+  document.fonts?.ready?.then(drawThumbMaker);
+  drawThumbMaker();
+}
+
 // 썸네일(001) 사진 칸 — 이름이 001이 아니어도 첫 장면 사진으로
 let thumbURLx = null;
 function drawThumbSlot() {
@@ -1781,7 +1855,7 @@ async function init() {
   drop.addEventListener("drop", (e) => addImages(e.dataTransfer.files));
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => { e.preventDefault(); if (e.target.closest?.("#drop, #vrew-drop")) return; if (e.dataTransfer?.files?.length) addImages(e.dataTransfer.files); });
-  initSub(); initClips(); initPreview();
+  initSub(); initClips(); initPreview(); initThumbMaker();
   $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); };
 
   $("#build").onclick = build;
