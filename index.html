@@ -211,7 +211,13 @@
           <label><input type="checkbox" id="tm-shade"> 아래쪽 살짝 어둡게 (글자 더 잘 보이게)</label>
         </div>
         <div class="tm-row">
-          <label>사진 위치 <input type="range" id="tm-posy" min="0" max="100" value="50"> <small>위 ↔ 아래</small></label>
+          <label>사진 확대 <input type="range" id="tm-zoom" min="100" max="250" step="5" value="100"></label>
+        </div>
+        <div class="tm-row">
+          <label>위아래 <input type="range" id="tm-posy" min="0" max="100" value="50"></label>
+          <label>좌우 <input type="range" id="tm-posx" min="0" max="100" value="50"></label>
+        </div>
+        <div class="tm-row"><small>사진을 확대해야 위아래·좌우로 옮길 수 있습니다 (사진이 화면에 딱 맞으면 옮길 여유가 없음)</small>
         </div>
         <div class="row" style="margin-top:6px">
           <button class="btn" id="tm-save" type="button">⬇ 3개 모두 다운로드</button>
@@ -319,7 +325,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=47"></script>
+<script src="app.js?v=48"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=6"></script>
 </body>

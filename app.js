@@ -913,9 +913,11 @@ async function drawThumbMaker(pickIdx) {
   const drop = $("#tm-drop"); drop.classList.toggle("has", !!f); $("#tm-name").textContent = f ? "✓ " + f.name + " (영상 001 사진으로도 등록됨)" : "끌어다 놓거나 클릭 · 넣으면 영상의 001 사진으로도 등록됩니다";
   ctx.fillStyle = "#2a2f36"; ctx.fillRect(0, 0, W, H);
   if (tm.bmp) {
-    const b = tm.bmp, s = Math.max(W / b.width, H / b.height), dw = b.width * s, dh = b.height * s;
-    const py = +$("#tm-posy").value / 100;
-    ctx.drawImage(b, (W - dw) / 2, (H - dh) * py, dw, dh);
+    // 확대하면 그만큼 위아래·좌우로 옮길 여유가 생김
+    const z = +$("#tm-zoom").value / 100;
+    const b = tm.bmp, s = Math.max(W / b.width, H / b.height) * z, dw = b.width * s, dh = b.height * s;
+    const px = +$("#tm-posx").value / 100, py = +$("#tm-posy").value / 100;
+    ctx.drawImage(b, (W - dw) * px, (H - dh) * py, dw, dh);
   } else {
     ctx.fillStyle = "rgba(255,255,255,.5)"; ctx.font = "32px sans-serif"; ctx.textAlign = "center"; ctx.fillText("썸네일 사진을 넣어 주세요", W / 2, H / 2 - 40);
   }
@@ -970,7 +972,7 @@ function initThumbMaker() {
   drop.ondragleave = () => drop.classList.remove("over");
   drop.ondrop = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("over"); setThumbPhoto(e.dataTransfer.files[0]); };
   let deb; const redraw = () => { clearTimeout(deb); deb = setTimeout(drawThumbMaker, 60); };
-  ["#tm-quote", "#tm-title1", "#tm-title2", "#tm-title3", "#tm-stretch", "#tm-area", "#tm-c1", "#tm-c2", "#tm-font", "#tm-size", "#tm-shade", "#tm-posy"].forEach((id) => { $(id).addEventListener("input", redraw); $(id).addEventListener("change", redraw); });
+  ["#tm-quote", "#tm-title1", "#tm-title2", "#tm-title3", "#tm-stretch", "#tm-area", "#tm-c1", "#tm-c2", "#tm-font", "#tm-size", "#tm-shade", "#tm-posy", "#tm-posx", "#tm-zoom"].forEach((id) => { $(id).addEventListener("input", redraw); $(id).addEventListener("change", redraw); });
   // 글꼴·색·크기는 저장 (제목·대사는 매번 새로)
   for (const [id, key] of [["#tm-font", "tmFont"], ["#tm-size", "tmSize2"], ["#tm-stretch", "tmStretch2"], ["#tm-area", "tmArea2"], ["#tm-c1", "tmC1"], ["#tm-c2", "tmC2"], ["#tm-shade", "tmShade"]]) {
     const e = $(id); store.get(key, null).then((v) => { if (v != null) { if (e.type === "checkbox") e.checked = v; else e.value = v; redraw(); } });
