@@ -209,6 +209,22 @@
           <small>바꾸면 오른쪽 미리보기에 바로 보입니다</small>
         </div>
         <div class="ctl">
+          <div class="ctl-h">화면 효과</div>
+          <select id="opt-fx">
+            <option value="none" selected>효과 없음</option>
+            <option value="firefly">반딧불 (떠다니는 빛)</option>
+            <option value="dust">빛가루 (반짝이는 먼지)</option>
+            <option value="petal">꽃잎 흩날림</option>
+            <option value="leaf">낙엽 흩날림</option>
+            <option value="snow">눈 내림</option>
+            <option value="leak">따뜻한 빛 번짐</option>
+          </select>
+          <div class="ctl-h" style="margin-top:10px">효과 양</div>
+          <select id="opt-fx-amt"><option value="0.6">적게</option><option value="1" selected>보통</option><option value="1.6">많이</option></select>
+          <label style="display:block;margin-top:10px"><input type="checkbox" id="opt-vig"> 가장자리 살짝 어둡게 (영화 느낌)</label>
+          <small>사진 위에만 들어갑니다 (맨 앞 하이라이트 영상에는 안 들어감)</small>
+        </div>
+        <div class="ctl">
           <div class="ctl-h">하이라이트 영상 소리 <b id="opt-clipvol-val">100%</b></div>
           <input type="range" id="opt-clipvol" min="0" max="150" step="5" value="100" style="width:100%">
           <small>0% = 소리 없음 · 100% = 원래 크기 · 영상 1·2 자체 소리(효과음 등)</small>
@@ -262,7 +278,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=5"></script>
 </body>

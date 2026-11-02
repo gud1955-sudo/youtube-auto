@@ -1269,6 +1269,90 @@ function drawMoving(ctx, bmp, m, p, si) {
   ctx.drawImage(bmp, (W - dw) / 2 + fx * (dw - W) / 2, (H - dh) / 2, dw, dh);
 }
 
+// ───────── 화면 효과 (반딧불·꽃잎·눈·빛가루·빛 번짐) — 시간만으로 계산해서 미리보기와 실제 영상이 똑같음 ─────────
+const FX = { none: "효과 없음", firefly: "반딧불 (떠다니는 빛)", dust: "빛가루 (반짝이는 먼지)", petal: "꽃잎 흩날림", leaf: "낙엽 흩날림", snow: "눈 내림", leak: "따뜻한 빛 번짐" };
+const curFx = () => ({ kind: $("#opt-fx")?.value || "none", amt: +($("#opt-fx-amt")?.value || 1), vig: !!$("#opt-vig")?.checked });
+const rnd = (i, k) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
+let fxSprites = null;
+function fxSprite() {
+  if (fxSprites) return fxSprites;
+  const mk = (w, h, f) => { const c = document.createElement("canvas"); c.width = w; c.height = h; f(c.getContext("2d")); return c; };
+  fxSprites = {
+    glow: mk(96, 96, (g) => { const r = g.createRadialGradient(48, 48, 0, 48, 48, 48); r.addColorStop(0, "rgba(255,250,200,1)"); r.addColorStop(0.18, "rgba(255,230,120,.9)"); r.addColorStop(0.5, "rgba(255,200,60,.25)"); r.addColorStop(1, "rgba(255,190,40,0)"); g.fillStyle = r; g.fillRect(0, 0, 96, 96); }),
+    mote: mk(32, 32, (g) => { const r = g.createRadialGradient(16, 16, 0, 16, 16, 16); r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.3, "rgba(255,245,220,.6)"); r.addColorStop(1, "rgba(255,240,200,0)"); g.fillStyle = r; g.fillRect(0, 0, 32, 32); }),
+    petal: mk(40, 28, (g) => { const r = g.createLinearGradient(0, 0, 40, 28); r.addColorStop(0, "#ffe3ea"); r.addColorStop(1, "#f7a8bd"); g.fillStyle = r; g.beginPath(); g.moveTo(2, 14); g.bezierCurveTo(10, 0, 30, 0, 38, 12); g.bezierCurveTo(30, 26, 10, 28, 2, 14); g.fill(); }),
+    leaf: mk(44, 30, (g) => { const r = g.createLinearGradient(0, 0, 44, 30); r.addColorStop(0, "#e8a03a"); r.addColorStop(1, "#b5541c"); g.fillStyle = r; g.beginPath(); g.moveTo(2, 15); g.quadraticCurveTo(22, -6, 42, 15); g.quadraticCurveTo(22, 36, 2, 15); g.fill(); g.strokeStyle = "rgba(90,40,10,.6)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(4, 15); g.lineTo(40, 15); g.stroke(); }),
+    snow: mk(24, 24, (g) => { const r = g.createRadialGradient(12, 12, 0, 12, 12, 12); r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.5, "rgba(255,255,255,.7)"); r.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = r; g.fillRect(0, 0, 24, 24); }),
+  };
+  return fxSprites;
+}
+function drawFx(ctx, fx, t) {
+  const { W, H } = CFG;
+  if (fx.vig) {
+    const r = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, W * 0.72);
+    r.addColorStop(0, "rgba(0,0,0,0)"); r.addColorStop(1, "rgba(0,0,0,.45)"); ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
+  }
+  if (fx.kind === "none") return;
+  const sp = fxSprite(); const a = fx.amt;
+  ctx.save();
+  const wrap = (v, m) => ((v % m) + m) % m;
+  if (fx.kind === "firefly") {
+    ctx.globalCompositeOperation = "lighter";
+    const n = Math.round(22 * a);
+    for (let i = 0; i < n; i++) {
+      const x = wrap(rnd(i, 1) * W + Math.sin(t * (0.15 + rnd(i, 2) * 0.25) + i) * 140 + t * (rnd(i, 3) - 0.5) * 30, W);
+      const y = wrap(H * (0.25 + rnd(i, 4) * 0.7) + Math.cos(t * (0.12 + rnd(i, 5) * 0.2) + i * 2) * 90 - t * 6 * rnd(i, 6), H);
+      const fl = 0.35 + 0.65 * Math.max(0, Math.sin(t * (0.8 + rnd(i, 7) * 1.6) + i * 3));
+      const sz = 26 + rnd(i, 8) * 40;
+      ctx.globalAlpha = fl * 0.9; ctx.drawImage(sp.glow, x - sz / 2, y - sz / 2, sz, sz);
+    }
+  } else if (fx.kind === "dust") {
+    ctx.globalCompositeOperation = "lighter";
+    const n = Math.round(70 * a);
+    for (let i = 0; i < n; i++) {
+      const x = wrap(rnd(i, 1) * W + t * (8 + rnd(i, 2) * 18) + Math.sin(t * 0.3 + i) * 30, W);
+      const y = wrap(rnd(i, 3) * H - t * (6 + rnd(i, 4) * 14), H);
+      const tw = 0.25 + 0.75 * Math.max(0, Math.sin(t * (1 + rnd(i, 5) * 2.5) + i));
+      const sz = 6 + rnd(i, 6) * 16;
+      ctx.globalAlpha = tw * 0.7; ctx.drawImage(sp.mote, x - sz / 2, y - sz / 2, sz, sz);
+    }
+  } else if (fx.kind === "petal" || fx.kind === "leaf") {
+    const img = fx.kind === "petal" ? sp.petal : sp.leaf;
+    const n = Math.round((fx.kind === "petal" ? 26 : 16) * a);
+    for (let i = 0; i < n; i++) {
+      const fall = 50 + rnd(i, 1) * 70, drift = 30 + rnd(i, 2) * 50;
+      const y = wrap(rnd(i, 3) * (H + 200) + t * fall, H + 200) - 100;
+      const x = wrap(rnd(i, 4) * (W + 200) + t * drift + Math.sin(t * (0.6 + rnd(i, 5)) + i) * 60, W + 200) - 100;
+      const sc = 0.6 + rnd(i, 6) * 0.9, rot = t * (0.6 + rnd(i, 7) * 1.4) * (rnd(i, 8) > 0.5 ? 1 : -1) + i;
+      const flip = Math.abs(Math.cos(t * (1 + rnd(i, 9)) + i)) * 0.7 + 0.3;
+      ctx.globalAlpha = 0.85;
+      ctx.setTransform(Math.cos(rot) * sc, Math.sin(rot) * sc * flip, -Math.sin(rot) * sc, Math.cos(rot) * sc * flip, x, y);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  } else if (fx.kind === "snow") {
+    const n = Math.round(90 * a);
+    for (let i = 0; i < n; i++) {
+      const depth = 0.4 + rnd(i, 1) * 0.6;
+      const y = wrap(rnd(i, 2) * H + t * (40 + 70 * depth), H + 40) - 20;
+      const x = wrap(rnd(i, 3) * W + Math.sin(t * (0.5 + rnd(i, 4)) + i) * 25 + t * 10, W);
+      const sz = 6 + 14 * depth;
+      ctx.globalAlpha = 0.5 + 0.5 * depth; ctx.drawImage(sp.snow, x - sz / 2, y - sz / 2, sz, sz);
+    }
+  } else if (fx.kind === "leak") {
+    ctx.globalCompositeOperation = "screen";
+    for (let i = 0; i < 2; i++) {
+      const cx = W * (0.15 + 0.7 * (0.5 + 0.5 * Math.sin(t * 0.07 + i * 2.5)));
+      const cy = H * (0.2 + 0.3 * (0.5 + 0.5 * Math.cos(t * 0.05 + i * 1.7)));
+      const r = ctx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.45);
+      const al = (0.16 + 0.1 * Math.sin(t * 0.3 + i)) * a;
+      r.addColorStop(0, `rgba(255,190,110,${al})`); r.addColorStop(0.5, `rgba(255,140,80,${al * 0.45})`); r.addColorStop(1, "rgba(255,120,60,0)");
+      ctx.globalAlpha = 1; ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
+    }
+  }
+  ctx.restore();
+}
+
 // ───────── 화면 미리보기 (자막 크기·움직임 확인용 애니메이션) ─────────
 let pvImg = null, pvImgSrc = null;
 async function pvSample() {
@@ -1344,6 +1428,7 @@ function initPreview() {
       const img = await pvSample();
       const si = seg - clips.length, p = Math.min(1, ts / CYCLE);
       drawMoving(ctx, img, curMotion(), p, si);
+      drawFx(ctx, curFx(), t);
       if (clips.length) capNote = "영상이 끝나고 사진 · ";
     }
     if ($("#opt-sub").checked && seg >= clips.length) {
@@ -1352,7 +1437,7 @@ function initPreview() {
       const part = parts[Math.floor(t / 2.5) % parts.length] || parts[0];
       if (part) drawSubtitle(ctx, { lines: part.lines, dialog: false }, size);
     }
-    $("#look-cap").textContent = `${capNote}${MOTIONS[curMotion().kind]} · 자막 ${$("#opt-font").selectedOptions[0].text} ${$("#opt-subsize").value}pt`;
+    $("#look-cap").textContent = `${capNote}${MOTIONS[curMotion().kind]} · ${FX[curFx().kind]} · 자막 ${$("#opt-font").selectedOptions[0].text} ${$("#opt-subsize").value}pt`;
     raf = requestAnimationFrame(frame);
   };
   const start = () => { if (!on) { on = true; t0 = performance.now(); seg = -1; raf = requestAnimationFrame(frame); } };
@@ -1361,6 +1446,9 @@ function initPreview() {
   // 설정 저장
   const keep = (id, key) => { const e = $(id); e.addEventListener("input", () => { store.set(key, e.value); if (id === "#opt-motion") { t0 = performance.now(); seg = -1; } }); };
   keep("#opt-subsize", "subSize"); keep("#opt-motion", "motion"); keep("#opt-motion-str", "motionStr"); keep("#opt-font", "subFont");
+  keep("#opt-fx", "fx"); keep("#opt-fx-amt", "fxAmt");
+  $("#opt-vig").addEventListener("change", () => store.set("vig", $("#opt-vig").checked));
+  (async () => { $("#opt-fx").value = await store.get("fx", "none"); $("#opt-fx-amt").value = await store.get("fxAmt", "1"); $("#opt-vig").checked = await store.get("vig", false); })();
   $("#opt-font").addEventListener("input", loadSubFont);
   const out = $("#opt-subsize-val"); const sync = () => (out.textContent = $("#opt-subsize").value + "pt");
   $("#opt-subsize").addEventListener("input", sync);
@@ -1474,6 +1562,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
   let vids = await loadVids(0); loadVids(1);
 
   const reader = tl.reader || new AudioReader(tl.segs, mock);
+  const fxNow = curFx();
 
   // 구독·좋아요 영상: 대본에서 '구독'이 처음 나오는 자막 시점에 재생
   let sub = null;
@@ -1565,6 +1654,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
       const p = Math.min(1, Math.max(0, (t - st) / Math.max(0.001, sc.end - st)));
       drawMoving(ctx, bmp, useZoom, p, si);
     }
+    if (!drewVideo) drawFx(ctx, fxNow, t);
     const subOn = sub && t >= sub.start && t < sub.start + sub.dur;
     if (subOn) {
       const v = sub.el; await seekTo(v, Math.min(t - sub.start, Math.max(0, sub.dur - 0.05)));
