@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>인생이야기 영상 제작기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Gowun+Dodum&family=Nanum+Gothic:wght@800&family=Nanum+Myeongjo:wght@800&family=Noto+Sans+KR:wght@700;900&family=Gothic+A1:wght@800&family=Nanum+Pen+Script&family=Gaegu:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Bagel+Fat+One&family=Gasoek+One&family=Noto+Sans+KR:wght@700;900&family=Gothic+A1:wght@800&family=Nanum+Gothic:wght@800&family=Sunflower:wght@700&family=Gowun+Dodum&family=Dongle:wght@700&family=Gugi&family=Yeon+Sung&family=Noto+Serif+KR:wght@900&family=Nanum+Myeongjo:wght@800&family=Hahmlet:wght@800&family=Song+Myung&family=Dokdo&family=East+Sea+Dokdo&family=Gaegu:wght@700&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lib/fonts/fonts.css?v=1">
 <link rel="stylesheet" href="app.css?v=30">
 </head>
 <body>
@@ -181,14 +182,11 @@
           <input type="file" id="tm-input" accept="image/*" hidden>
           <strong>썸네일 사진 넣기</strong><span id="tm-name">끌어다 놓거나 클릭 · 넣으면 영상의 001 사진으로도 등록됩니다</span>
         </label>
-        <label class="tm-field"><span>위 대사 <small>(오른쪽 위, 흰 글씨)</small></span><input type="text" id="tm-quote" placeholder="예: 내 사람 옆에서 비켜요!"></label>
+        <label class="tm-field"><span>위 대사 <small>(흰 글씨 · 미리보기에서 끌어서 위치 이동) <button class="btn ghost sm" id="tm-qreset" type="button" style="font-size:12px">위치 처음대로</button></small></span><input type="text" id="tm-quote" placeholder="예: 내 사람 옆에서 비켜요!"></label>
         <label class="tm-field"><span>제목 <small>(한 번에 입력 → 자동으로 두 줄로 나눔)</small></span><textarea id="tm-title" rows="2" placeholder="예: 남편 앞에서 내연녀에게 뺨을 맞은 임신부, 그런데 달려온 비서가 외친 한마디에 모두가 굳었습니다"></textarea></label>
         <div class="tm-row"><label>윗줄 색 <input type="color" id="tm-c1" value="#3cff2e"></label><label>아랫줄 색 <input type="color" id="tm-c2" value="#fff200"></label><small>직접 나누고 싶으면 줄바꿈(Enter)</small></div>
         <div class="tm-row">
-          <label>글꼴 <select id="tm-font">
-            <option value="Jua|400" selected>주아</option><option value="Do Hyeon|400">도현</option><option value="Black Han Sans|400">검은고딕</option>
-            <option value="Noto Sans KR|900">본고딕 아주 굵게</option><option value="Gothic A1|800">고딕 A1 굵게</option>
-          </select></label>
+          <label>글꼴 <select id="tm-font"></select></label>
           <label>제목 크기 <select id="tm-size"><option value="0.9">작게</option><option value="1" selected>보통</option><option value="1.12">크게</option></select></label>
         </div>
         <div class="tm-row">
@@ -204,7 +202,7 @@
       </div>
       <figure class="look tm-look">
         <canvas id="tm-canvas" width="1280" height="720"></canvas>
-        <figcaption>썸네일 미리보기 (실제 저장 모습)</figcaption>
+        <figcaption>썸네일 미리보기 (실제 저장 모습) · 위 대사는 마우스로 끌어서 옮길 수 있습니다</figcaption>
       </figure>
     </div>
   </section>
@@ -230,19 +228,7 @@
         </div>
         <div class="ctl">
           <div class="ctl-h">자막 글꼴</div>
-          <select id="opt-font">
-            <option value="Jua|400" selected>주아 (둥글고 굵게)</option>
-            <option value="Do Hyeon|400">도현 (각지고 또렷하게)</option>
-            <option value="Black Han Sans|400">검은고딕 (아주 굵게)</option>
-            <option value="Noto Sans KR|900">본고딕 아주 굵게</option>
-            <option value="Noto Sans KR|700">본고딕 굵게</option>
-            <option value="Nanum Gothic|800">나눔고딕 굵게</option>
-            <option value="Gothic A1|800">고딕 A1 굵게</option>
-            <option value="Gowun Dodum|400">고운돋움 (부드럽게)</option>
-            <option value="Nanum Myeongjo|800">나눔명조 굵게 (신문·책 느낌)</option>
-            <option value="Gaegu|700">개구 (손글씨, 굵게)</option>
-            <option value="Nanum Pen Script|400">나눔손글씨 펜</option>
-          </select>
+          <select id="opt-font"></select>
           <small>바꾸면 오른쪽 미리보기에 바로 보입니다</small>
         </div>
         <div class="ctl">
@@ -315,7 +301,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=37"></script>
+<script src="app.js?v=39"></script>
 <script src="gen.js?v=1"></script>
 <script src="tts.js?v=5"></script>
 </body>

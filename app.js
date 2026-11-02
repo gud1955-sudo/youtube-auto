@@ -841,7 +841,7 @@ function drawClips() {
   });
 }
 // ───────── 썸네일 만들기 (사진 + 위 대사 + 제목 2줄 → 1280×720 PNG) ─────────
-const tm = { bmp: null, src: null };
+const tm = { bmp: null, src: null, q: null, qBox: null }; // q = 위 대사 위치 {x, y} (가운데 기준, 0~1)
 function setThumbPhoto(f) {
   if (!f) return;
   if (!(f.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(f.name))) return toast("사진 파일을 넣어 주세요");
@@ -905,7 +905,16 @@ async function drawThumbMaker() {
   const y2 = H - 30, y1 = t2 ? y2 - lh : y2;
   if (t1) tmText(ctx, t1, W / 2, y1, fs, $("#tm-c1").value, "center", maxW, font);
   if (t2) tmText(ctx, t2, W / 2, y2, fs, $("#tm-c2").value, "center", maxW, font);
-  if (q) tmText(ctx, q, W - 60, 72, Math.round(46 * k), "#ffffff", "right", W * 0.6, font);
+  if (q) {
+    const qs = fitSize(ctx, q, Math.round(46 * k), W * 0.9, font);
+    ctx.font = `${font[1]} ${qs}px "${font[0]}", sans-serif`;
+    const qw = ctx.measureText(q).width;
+    if (!tm.q) tm.q = { x: (W - 60 - qw / 2) / W, y: (72 - qs * 0.35) / H }; // 기본: 오른쪽 위
+    const cx = Math.min(W - qw / 2 - 10, Math.max(qw / 2 + 10, tm.q.x * W)), cy = Math.min(H - qs * 0.6, Math.max(qs * 0.7, tm.q.y * H));
+    tmText(ctx, q, cx, cy + qs * 0.35, qs, "#ffffff", "center", W * 0.9, font);
+    tm.qBox = { x: cx - qw / 2 - 12, y: cy - qs * 0.7, w: qw + 24, h: qs * 1.4 };
+    if (tm.dragging || tm.hover) { ctx.save(); ctx.setLineDash([10, 6]); ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.strokeRect(tm.qBox.x, tm.qBox.y, tm.qBox.w, tm.qBox.h); ctx.restore(); }
+  } else tm.qBox = null;
   $("#tm-state").textContent = f && (t1 || t2) ? "✓ 준비됨" : ""; $("#tm-state").className = "state ok";
 }
 function initThumbMaker() {
@@ -922,7 +931,23 @@ function initThumbMaker() {
     const e = $(id); store.get(key, null).then((v) => { if (v != null) { if (e.type === "checkbox") e.checked = v; else e.value = v; redraw(); } });
     e.addEventListener("change", () => store.set(key, e.type === "checkbox" ? e.checked : e.value));
   }
+  // 위 대사 끌어서 옮기기
+  const pos = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * cv.width, y: (e.clientY - r.top) / r.height * cv.height }; };
+  const inQ = (p) => tm.qBox && p.x >= tm.qBox.x && p.x <= tm.qBox.x + tm.qBox.w && p.y >= tm.qBox.y && p.y <= tm.qBox.y + tm.qBox.h;
+  let grab = null;
+  cv.addEventListener("pointerdown", (e) => { const p = pos(e); if (!inQ(p)) return; grab = { dx: p.x - tm.q.x * cv.width, dy: p.y - tm.q.y * cv.height }; tm.dragging = true; cv.setPointerCapture(e.pointerId); e.preventDefault(); });
+  cv.addEventListener("pointermove", (e) => {
+    const p = pos(e);
+    if (grab) { tm.q = { x: (p.x - grab.dx) / cv.width, y: (p.y - grab.dy) / cv.height }; redraw(); }
+    else { const h = inQ(p); if (h !== !!tm.hover) { tm.hover = h; cv.style.cursor = h ? "move" : "default"; redraw(); } }
+  });
+  const drop2 = () => { if (grab) { grab = null; tm.dragging = false; store.set("tmQ", tm.q); redraw(); } };
+  cv.addEventListener("pointerup", drop2); cv.addEventListener("pointercancel", drop2);
+  cv.addEventListener("pointerleave", () => { if (tm.hover && !grab) { tm.hover = false; redraw(); } });
+  store.get("tmQ", null).then((v) => { if (v && !tm.q) { tm.q = v; redraw(); } });
+  $("#tm-qreset").onclick = () => { tm.q = null; store.set("tmQ", null); redraw(); };
   $("#tm-save").onclick = async () => {
+    tm.hover = false; tm.dragging = false;
     await drawThumbMaker();
     if (!state.images.get(clipScene())) return toast("썸네일 사진을 먼저 넣어 주세요");
     cv.toBlob((b) => { const d = new Date().toISOString().slice(0, 10).replace(/-/g, ""); download(`썸네일_${d}.png`, b); }, "image/png");
@@ -1567,6 +1592,13 @@ async function loadBitmap(file, zoom) {
   return bmp;
 }
 
+// 자막·썸네일 글꼴 목록 (값 = "글꼴이름|굵기")
+const FONTS = [["인기·굵은 글꼴", [["Jalnan|400", "여기어때 잘난체 (썸네일 인기)"], ["BMHannaPro|400", "배민 한나체 Pro (썸네일 인기)"], ["Cafe24Ssurround|400", "카페24 써라운드 (굵고 둥글게)"], ["GangwonPower|400", "강원교육 튼튼 (아주 굵게)"], ["ONEMobilePOP|400", "원스토어 모바일POP (통통하게)"], ["NanumSquareEB|400", "나눔스퀘어 ExtraBold (깔끔하게)"], ["NanumSquareRoundEB|400", "나눔스퀘어라운드 ExtraBold"], ["LINESeedKR|400", "LINE Seed Bold (세련되게)"], ["PayboocBold|400", "페이북 Bold"], ["Jua|400", "주아 (둥글고 굵게)"], ["Do Hyeon|400", "도현 (각지고 또렷하게)"], ["Black Han Sans|400", "검은고딕 (아주 굵게)"], ["Bagel Fat One|400", "베이글 (아주 통통하게)"], ["Gasoek One|400", "가석 (꽉 찬 굵기)"]]], ["고딕 (깔끔)", [["Noto Sans KR|900", "본고딕 Black"], ["Noto Sans KR|700", "본고딕 Bold"], ["Gothic A1|800", "고딕 A1 ExtraBold"], ["Nanum Gothic|800", "나눔고딕 ExtraBold"], ["Sunflower|700", "해바라기 Bold"], ["Gowun Dodum|400", "고운돋움 (부드럽게)"]]], ["귀엽고 개성 있게", [["BinggraeBold|400", "빙그레 Bold (귀엽게)"], ["MaplestoryBold|400", "메이플스토리 Bold"], ["BMHanna11|400", "배민 한나는 열한살"], ["BMEuljiro|400", "배민 을지로체 (옛날 간판 느낌)"], ["TmonMonsori|400", "티몬 몬소리 (개성 있게)"], ["Dongle|700", "동글 (동글동글)"], ["Gugi|400", "구기 (독특하게)"], ["Yeon Sung|400", "연성"]]], ["명조·옛날 느낌", [["Noto Serif KR|900", "본명조 Black (신문 제목 느낌)"], ["Nanum Myeongjo|800", "나눔명조 ExtraBold"], ["Hahmlet|800", "함렛 ExtraBold"], ["Song Myung|400", "송명 (옛 책 느낌)"], ["ChosunGs|400", "조선궁서체 (붓글씨·사극 느낌)"]]], ["손글씨·붓", [["NanumBrush|400", "나눔손글씨 붓"], ["Dokdo|400", "독도 (거친 붓)"], ["East Sea Dokdo|400", "동해독도"], ["Gaegu|700", "개구 (손글씨)"], ["Nanum Pen Script|400", "나눔손글씨 펜"]]]];
+function fillFontSelect(sel, def) {
+  if (!sel) return;
+  sel.innerHTML = "";
+  for (const [g, list] of FONTS) { const og = document.createElement("optgroup"); og.label = g; for (const [v, t] of list) og.append(new Option(t, v, v === def, v === def)); sel.append(og); }
+}
 // 자막 글꼴 (값 = "글꼴이름|굵기")
 const subFontPick = () => ($("#opt-font")?.value || "Jua|400").split("|");
 const subFontCss = (px) => { const [fam, w] = subFontPick(); return `${w} ${px}px "${fam}", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`; };
@@ -1873,6 +1905,7 @@ async function init() {
   drop.addEventListener("drop", (e) => addImages(e.dataTransfer.files));
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => { e.preventDefault(); if (e.target.closest?.("#drop, #vrew-drop")) return; if (e.dataTransfer?.files?.length) addImages(e.dataTransfer.files); });
+  fillFontSelect($("#opt-font"), "Jua|400"); fillFontSelect($("#tm-font"), "Jalnan|400");
   initSub(); initClips(); initPreview(); initThumbMaker();
   $("#img-clear").onclick = () => { state.images.clear(); state.imageOrder = []; for (const u of thumbCache.values()) URL.revokeObjectURL(u); thumbCache.clear(); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); };
 
