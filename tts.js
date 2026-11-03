@@ -88,6 +88,7 @@ ttsRequest = async function (body) {
     } else throw e;
   }
   if (!j?.audioContent) throw new ApiError("구글이 음성을 돌려주지 않았습니다.", false);
+  gCountUsage(req.input);
   const bin = Uint8Array.from(atob(j.audioContent), (c) => c.charCodeAt(0));
   return new Blob([bin], { type: "audio/wav" });
 };
@@ -218,7 +219,33 @@ async function gPreview(btn) {
   finally { btn.disabled = false; btn.textContent = old; }
 }
 
+// ───────── 이번 달 사용 글자 수 (구글 무료 매달 100만 자) ─────────
+// 구글은 API 키만으로 사용량을 알려주지 않으므로, 이 제작기가 구글에 보낸 글자 수를 직접 셈.
+// 구글 결제 월은 미국 태평양 시간 기준 → 그 기준으로 달을 나눔.
+const G_FREE = 1_000_000;
+const gMonth = () => { const p = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit" }).formatToParts(new Date()); return p.find((x) => x.type === "year").value + "-" + p.find((x) => x.type === "month").value; };
+function gUsageGet() { try { const u = JSON.parse(localStorage.getItem("insaeng:gUsage") || "{}"); return u.month === gMonth() ? u : { month: gMonth(), chars: 0, reqs: 0 }; } catch { return { month: gMonth(), chars: 0, reqs: 0 }; } }
+function gCountUsage(input) {
+  const n = [...(input?.text || input?.markup || input?.ssml || "")].length;
+  const u = gUsageGet(); u.chars += n; u.reqs += 1;
+  try { localStorage.setItem("insaeng:gUsage", JSON.stringify(u)); } catch { /* 무시 */ }
+  clearTimeout(gCountUsage.t); gCountUsage.t = setTimeout(gRenderUsage, 300);
+}
+function gRenderUsage() {
+  const box = $("#g-usage"); if (!box) return;
+  const u = gUsageGet(), pct = Math.min(100, u.chars / G_FREE * 100), left = Math.max(0, G_FREE - u.chars);
+  const [y, m] = u.month.split("-");
+  box.className = "g-usage" + (pct >= 90 ? " err" : pct >= 70 ? " warn" : "");
+  box.innerHTML = "";
+  box.append(
+    el("div", { class: "gu-top" }, el("b", {}, `${+m}월 사용: ${u.chars.toLocaleString()}자`), el("span", {}, ` / 무료 1,000,000자 · 남은 글자 ${left.toLocaleString()}자 (영상 약 ${Math.floor(left / 25000)}편)`)),
+    el("div", { class: "gu-bar" }, el("i", { style: `width:${pct.toFixed(1)}%` })),
+    el("small", {}, "이 컴퓨터에서 이 제작기로 새로 만든 음성만 셉니다 (다시 재생한 음성은 무료라 안 셈). 다른 곳에서 쓴 양은 구글 클라우드 콘솔 → 결제에서 확인하세요."),
+  );
+}
+
 async function initGoogle() {
+  gRenderUsage();
   const g = state.g;
   g.key = await store.get("gKey", "");
   g.voice = await store.get("gVoice", "");

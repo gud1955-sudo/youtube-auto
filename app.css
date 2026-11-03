@@ -201,3 +201,10 @@ select.gvoice { flex: 1; min-width: 260px; }
 .tm-title-h { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
 .tm-title-h .btn { font-size: 13px; padding: 3px 10px; }
 .tm-title-row textarea.tm-title { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; height: 62px !important; min-height: 0 !important; resize: vertical; }
+.g-usage { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--soft); font-size: 14px; }
+.g-usage .gu-top span { color: var(--muted); }
+.g-usage .gu-bar { height: 8px; border-radius: 4px; background: #ece7df; overflow: hidden; margin: 6px 0; }
+.g-usage .gu-bar i { display: block; height: 100%; background: var(--ok); }
+.g-usage.warn .gu-bar i { background: var(--warn); } .g-usage.warn b { color: var(--warn); }
+.g-usage.err .gu-bar i { background: var(--err); } .g-usage.err b { color: var(--err); }
+.g-usage small { color: var(--muted); font-size: 12px; }
