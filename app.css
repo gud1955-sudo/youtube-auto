@@ -86,7 +86,7 @@ textarea { width: 100%; min-height: 260px; resize: vertical; font-family: "Malgu
 .result.err h3 { color: var(--err); }
 .more { margin-top: 18px; color: var(--muted); }
 .more summary { cursor: pointer; }
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #241f1b; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 15px; max-width: 90vw; z-index: 10; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #241f1b; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 15px; max-width: 90vw; z-index: 10; white-space: pre-line; }
 @media (max-width: 720px) {
   .cast-row { grid-template-columns: 1fr; }
 }
@@ -208,3 +208,9 @@ select.gvoice { flex: 1; min-width: 260px; }
 .g-usage.warn .gu-bar i { background: var(--warn); } .g-usage.warn b { color: var(--warn); }
 .g-usage.err .gu-bar i { background: var(--err); } .g-usage.err b { color: var(--err); }
 .g-usage small { color: var(--muted); font-size: 12px; }
+.tile .tacts { position: absolute; left: 6px; right: 6px; top: calc((100% - 46px) / 2 - 14px); display: flex; gap: 6px; justify-content: center; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.tile:hover .tacts, .tile:focus-within .tacts, .tile.miss .tacts { opacity: 1; pointer-events: auto; }
+.tile .tbtn { font: inherit; font-size: 12.5px; font-weight: 600; padding: 4px 10px; border-radius: 6px; border: 0; background: rgba(0,0,0,.72); color: #fff; cursor: pointer; }
+.tile .tbtn:hover { background: #000; }
+.tile.over { outline: 3px solid var(--accent); outline-offset: -3px; }
+.tile.miss .ph { color: transparent; }

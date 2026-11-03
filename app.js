@@ -741,17 +741,36 @@ async function addImages(fileList) {
     if (vAdded) { toast(`영상 클립 ${vAdded}개 추가`); if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid(); return; }
     return toast("사진·영상 파일이 아닙니다");
   }
-  // 파일 이름이 숫자로 시작하면(001.png, 12_장면.jpg) 그 번호의 장면에 넣고,
-  // 아니면(Flow 다운로드 이름 등) 다운로드한 순서대로 장면에 넣는다
-  const lead = (f) => f.name.match(/^\s*(\d{1,4})(?!\d)/);
-  const numbered = imgs.filter(lead);
-  if (numbered.length >= imgs.length * 0.8) {
-    for (const f of imgs) { const m = lead(f); if (m) state.images.set(+m[1], f); else state.imageOrder.push(f); }
-    toast(`사진 ${imgs.length}장${vAdded ? ` · 영상 ${vAdded}개` : ""} 추가 (파일 이름 번호대로)`);
+  // 파일 이름에서 장면 번호 읽기: 001.png / 001 (1).png / 장면_005.png / scene005.jpg / 에피소드31_장면007.png
+  //  - 맨 앞 숫자 → '장면·scene·씬·컷' 뒤 숫자 → 세 자리 숫자 순서로 찾음 (날짜·긴 번호는 무시)
+  const validNum = (n) => n > 0 && (state.scenes.length ? state.scenes.some((sc) => sc.num === n) : n <= 999);
+  const sceneNo = (name) => {
+    const base = name.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "");
+    const tries = [/^\s*(\d{1,4})(?!\d)/, /(?:장면|scene|씬|컷)\s*[_\-#.]?\s*(\d{1,4})(?!\d)/i, /(?<!\d)(\d{3})(?!\d)/];
+    for (const re of tries) { const m = base.match(re); if (m && validNum(+m[1])) return +m[1]; }
+    return null;
+  };
+  const withNo = imgs.map((f) => ({ f, n: sceneNo(f.name) }));
+  const numbered = withNo.filter((x) => x.n != null), unknown = withNo.filter((x) => x.n == null).map((x) => x.f);
+  const notes = [];
+  if (numbered.length >= imgs.length * 0.5) {
+    // 같은 번호가 여러 장이면 가장 최근에 받은(새로 만든) 사진을 씀
+    const best = new Map(); let dup = 0;
+    for (const { f, n } of numbered) { const cur = best.get(n); if (cur) { dup++; if (f.lastModified >= cur.lastModified) best.set(n, f); } else best.set(n, f); }
+    for (const [n, f] of best) state.images.set(n, f);
+    if (dup) notes.push(`같은 번호 사진 ${dup}장은 가장 최근 것만 썼습니다`);
+    // 번호를 못 읽은 사진은 비어 있는 장면에 순서대로
+    if (unknown.length) {
+      unknown.sort((a, b) => (a.lastModified - b.lastModified) || a.name.localeCompare(b.name, "ko", { numeric: true }));
+      const empty = state.scenes.filter((sc) => !state.images.get(sc.num)).map((sc) => sc.num);
+      unknown.forEach((f, i) => { if (empty[i] != null) state.images.set(empty[i], f); });
+      notes.push(`번호를 못 읽은 사진 ${unknown.length}장(${unknown.slice(0, 3).map((f) => f.name).join(", ")}${unknown.length > 3 ? " …" : ""})은 빈 장면에 순서대로 넣었습니다 — 맞는지 확인하세요`);
+    }
+    toast(`사진 ${imgs.length}장${vAdded ? ` · 영상 ${vAdded}개` : ""} 추가 (파일 이름 번호대로)${notes.length ? "\n" + notes.join("\n") : ""}`, notes.length ? 9000 : 3500);
   } else {
     imgs.sort((a, b) => (a.lastModified - b.lastModified) || a.name.localeCompare(b.name, "ko", { numeric: true }));
     state.imageOrder.push(...imgs);
-    toast(`사진 ${imgs.length}장${vAdded ? ` · 영상 ${vAdded}개` : ""} 추가 (다운로드한 순서대로)`, 4500);
+    toast(`사진 ${imgs.length}장${vAdded ? ` · 영상 ${vAdded}개` : ""} 추가 — 파일 이름에 장면 번호가 없어 다운로드한 순서대로 넣었습니다. 순서가 틀린 장면은 사진을 눌러 바꾸세요`, 8000);
   }
   if (state.auto || state.mode === "vrew") onScriptChange(); else renderGrid();
 }
@@ -763,6 +782,14 @@ function imageFor(num, idx) {
 const thumbCache = new Map();
 function thumbURL(f) { if (!thumbCache.has(f)) thumbCache.set(f, URL.createObjectURL(f)); return thumbCache.get(f); }
 
+// 장면 하나의 사진만 바꾸기 (file=null 이면 빼기 → 앞 사진이 이어짐)
+function setSceneImage(num, file) {
+  if (file && !(file.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(file.name))) return toast("사진 파일을 넣어 주세요");
+  state.images.set(num, file || null);
+  if (num === clipScene()) state.thumbFixed = file || null;
+  renderGrid();
+  toast(file ? `장면 ${pad3(num)} 사진을 바꿨습니다` : `장면 ${pad3(num)} 사진을 뺐습니다 (앞 사진이 이어서 나옴)`);
+}
 function renderGrid() {
   drawClips?.();
   // 썸네일 칸에 넣은 사진은 항상 첫 장면에 (대본을 나중에 넣어 번호가 바뀌어도)
@@ -812,8 +839,19 @@ function renderGrid() {
     const regen = canRegen ? el("button", { class: "regen", title: "이 장면 사진 다시 만들기", onclick: (e) => { e.stopPropagation(); e.target.disabled = true; e.target.textContent = "…"; regenScene(sc.num); } }, "다시") : null;
     const vbadge = nv ? el("span", { class: "vbadge", title: "이 장면 앞부분에 영상 클립이 먼저 나오고, 남는 시간에 사진이 나옵니다" }, `🎬 영상 ${nv}개`) : null;
     const ok = f ? el("span", { class: "okbadge", title: f.name }, "✓") : null;
-    g.append(el("div", { class: "tile" + (f || nv ? "" : " miss") }, ph, regen, vbadge, ok,
-      el("div", { class: "cap" }, el("b", {}, pad3(sc.num)), sc.chapter ? `· ${sc.chapter}` : "", el("span", {}, f ? f.name : sc.lines[0].text))));
+    // 장면마다 사진 바꾸기·빼기 (사진을 끌어다 놓아도 바뀜)
+    const pick = el("input", { type: "file", accept: "image/*", hidden: true, onchange: (e) => { setSceneImage(sc.num, e.target.files[0]); } });
+    const acts = el("div", { class: "tacts" },
+      el("button", { class: "tbtn", type: "button", title: "이 장면 사진만 다른 사진으로", onclick: (e) => { e.stopPropagation(); pick.click(); } }, f ? "바꾸기" : "넣기"),
+      f ? el("button", { class: "tbtn", type: "button", title: "이 장면 사진 빼기 (앞 사진이 이어서 나옴)", onclick: (e) => { e.stopPropagation(); setSceneImage(sc.num, null); } }, "빼기") : null);
+    const tile = el("div", { class: "tile" + (f || nv ? "" : " miss") }, ph, regen, vbadge, ok, acts, pick,
+      el("div", { class: "cap" }, el("b", {}, pad3(sc.num)), sc.chapter ? `· ${sc.chapter}` : "", el("span", {}, f ? f.name : sc.lines[0].text)));
+    ph.style.cursor = "pointer"; ph.title = "누르면 이 장면 사진만 바꿉니다 (사진을 끌어다 놓아도 됨)";
+    ph.onclick = () => pick.click();
+    tile.addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); tile.classList.add("over"); });
+    tile.addEventListener("dragleave", () => tile.classList.remove("over"));
+    tile.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); tile.classList.remove("over"); const file = [...e.dataTransfer.files].find((x) => x.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(x.name)); if (file) setSceneImage(sc.num, file); else toast("사진 파일을 놓아 주세요"); });
+    g.append(tile);
   }
   st.textContent = `✓ 사진 ${have}장`; st.className = "state ok";
 }
@@ -1746,7 +1784,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
   const getBmp = (i) => { if (i >= scenes.length) return null; if (!bmpCache.has(i)) bmpCache.set(i, loadBitmap(files[i], zoom)); return bmpCache.get(i); };
 
   // 장면별 영상 클립 (있으면 장면 앞부분에 순서대로, 남는 시간엔 그 장면 사진 또는 마지막 화면 유지)
-  const ownImage = scenes.map((sc) => state.images.has(sc.num) || !!imageFor(sc.num, state.scenes.indexOf(sc)));
+  const ownImage = scenes.map((sc) => !!imageFor(sc.num, state.scenes.indexOf(sc)));
   const vidCache = new Map(); // 장면 index → Promise<[{el, dur, url}]>
   const loadVids = (i) => {
     if (i >= scenes.length) return null;
