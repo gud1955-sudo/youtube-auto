@@ -55,10 +55,21 @@ async function gFetch(path, opts = {}, tries = 5) {
 //  - Chirp 3 HD 목소리: markup 의 [pause short]
 //  - 그 밖의 목소리: SSML <break>
 const escXml = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// 문장 끝(. ? ! …)마다 쉬기 — 설정: 0 없음 / 1 짧게 / 2 보통 / 3 길게
+const G_PAUSE = { 1: ["[pause short]", "350ms"], 2: ["[pause]", "600ms"], 3: ["[pause long]", "1000ms"] };
+const SENT_END = /([.?!…]+["'”’」』)]*)\s+(?=\S)/g;
 function gInput(text, voice) {
-  if (!/[,，]/.test(text)) return { text };
-  if (/Chirp3-HD|Chirp-HD/i.test(voice || "")) return { markup: text.replace(/([,，])\s*/g, "$1 [pause short] ").trim() };
-  return { ssml: `<speak>${escXml(text).replace(/([,，])\s*/g, '$1<break time="280ms"/> ')}</speak>` };
+  const lv = +(state.g?.pause ?? 2);
+  const hasComma = /[,，]/.test(text), hasSent = lv > 0 && SENT_END.test(text); SENT_END.lastIndex = 0;
+  if (!hasComma && !hasSent) return { text };
+  if (/Chirp3-HD|Chirp-HD/i.test(voice || "")) {
+    let t = text.replace(/([,，])\s*/g, "$1 [pause short] ");
+    if (lv > 0) t = t.replace(SENT_END, `$1 ${G_PAUSE[lv][0]} `);
+    return { markup: t.trim() };
+  }
+  let t = escXml(text).replace(/([,，])\s*/g, '$1<break time="280ms"/> ');
+  if (lv > 0) t = t.replace(SENT_END, `$1<break time="${G_PAUSE[lv][1]}"/> `);
+  return { ssml: `<speak>${t}</speak>` };
 }
 const _ttsBody = ttsBody, _ttsRequest = ttsRequest;
 ttsBody = function (text, v, emotion, intensity, prev, next) {
@@ -250,6 +261,8 @@ async function initGoogle() {
   g.key = await store.get("gKey", "");
   g.voice = await store.get("gVoice", "");
   g.speed = +(await store.get("gSpeed", 1.0));
+  g.pause = +(await store.get("gPause", 2));
+  const pz = $("#g-pause"); if (pz) { pz.value = String(g.pause); pz.onchange = () => { g.pause = +pz.value; store.set("gPause", g.pause); }; }
   if (g.key) { $("#g-key").value = g.key; $("#g-key-state").textContent = "✓ 저장됨"; $("#g-key-state").className = "state ok"; }
   $("#g-key-save").onclick = async () => {
     g.key = $("#g-key").value.trim(); await store.set("gKey", g.key);

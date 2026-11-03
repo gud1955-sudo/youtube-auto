@@ -1388,6 +1388,7 @@ function buildTimeline(scenes, preRoll = 0) {
     if (i + 1 < flat.length) {
       const [nsi, nl] = flat[i + 1];
       gap = nsi !== si ? CFG.gapScene : nl.speaker !== l.speaker ? CFG.gapSpeaker : CFG.gapSame;
+      gap *= [0.8, 1, 1.4, 1.9][+(state.g?.pause ?? 2)] || 1; // 문단 사이 쉼도 '문장 사이 쉼' 설정에 맞춤
     } else gap = CFG.endPad;
     const g = Math.round(gap * sr); segs.push({ silence: g }); s += g;
   });

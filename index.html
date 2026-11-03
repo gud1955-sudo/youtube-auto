@@ -42,6 +42,9 @@
         <option value="0.95">속도: 살짝 느리게</option><option value="1">속도: 보통</option><option value="1.05">속도: 살짝 빠르게</option>
         <option value="1.1">속도: 조금 빠르게</option><option value="1.2">속도: 빠르게</option>
       </select>
+      <select id="g-pause" title="문장이 끝날 때마다 쉬는 길이">
+        <option value="0">문장 사이 쉼: 없음</option><option value="1">문장 사이 쉼: 짧게</option><option value="2" selected>문장 사이 쉼: 보통</option><option value="3">문장 사이 쉼: 길게</option>
+      </select>
       <span class="state" id="g-voice-state"></span>
     </div>
     <div class="row picks" id="g-picks"></div>
@@ -326,8 +329,8 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=51"></script>
+<script src="app.js?v=52"></script>
 <script src="gen.js?v=1"></script>
-<script src="tts.js?v=7"></script>
+<script src="tts.js?v=8"></script>
 </body>
 </html>
