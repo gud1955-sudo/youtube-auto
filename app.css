@@ -214,3 +214,8 @@ select.gvoice { flex: 1; min-width: 260px; }
 .tile .tbtn:hover { background: #000; }
 .tile.over { outline: 3px solid var(--accent); outline-offset: -3px; }
 .tile.miss .ph { color: transparent; }
+.pm-box { margin: 4px 0 14px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--soft); }
+.pm-box summary { cursor: pointer; }
+.pm-box summary small { color: var(--muted); }
+textarea.pm-text { min-height: 120px; height: 140px; font-size: 13px; }
+.tile .unsure { position: absolute; bottom: 52px; left: 6px; font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: #e7a52b; color: #1f1d1a; }

@@ -787,6 +787,7 @@ function setSceneImage(num, file) {
   if (file && !(file.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(file.name))) return toast("사진 파일을 넣어 주세요");
   state.images.set(num, file || null);
   if (num === clipScene()) state.thumbFixed = file || null;
+  state.matchUnsure?.delete(num);
   renderGrid();
   toast(file ? `장면 ${pad3(num)} 사진을 바꿨습니다` : `장면 ${pad3(num)} 사진을 뺐습니다 (앞 사진이 이어서 나옴)`);
 }
@@ -839,12 +840,13 @@ function renderGrid() {
     const regen = canRegen ? el("button", { class: "regen", title: "이 장면 사진 다시 만들기", onclick: (e) => { e.stopPropagation(); e.target.disabled = true; e.target.textContent = "…"; regenScene(sc.num); } }, "다시") : null;
     const vbadge = nv ? el("span", { class: "vbadge", title: "이 장면 앞부분에 영상 클립이 먼저 나오고, 남는 시간에 사진이 나옵니다" }, `🎬 영상 ${nv}개`) : null;
     const ok = f ? el("span", { class: "okbadge", title: f.name }, "✓") : null;
+    const unsure = f && state.matchUnsure?.has(sc.num) ? el("span", { class: "unsure", title: "AI가 헷갈린 장면입니다. 맞는지 확인하고, 틀리면 '바꾸기'로 고치세요" }, "확인") : null;
     // 장면마다 사진 바꾸기·빼기 (사진을 끌어다 놓아도 바뀜)
     const pick = el("input", { type: "file", accept: "image/*", hidden: true, onchange: (e) => { setSceneImage(sc.num, e.target.files[0]); } });
     const acts = el("div", { class: "tacts" },
       el("button", { class: "tbtn", type: "button", title: "이 장면 사진만 다른 사진으로", onclick: (e) => { e.stopPropagation(); pick.click(); } }, f ? "바꾸기" : "넣기"),
       f ? el("button", { class: "tbtn", type: "button", title: "이 장면 사진 빼기 (앞 사진이 이어서 나옴)", onclick: (e) => { e.stopPropagation(); setSceneImage(sc.num, null); } }, "빼기") : null);
-    const tile = el("div", { class: "tile" + (f || nv ? "" : " miss") }, ph, regen, vbadge, ok, acts, pick,
+    const tile = el("div", { class: "tile" + (f || nv ? "" : " miss") }, ph, regen, vbadge, ok, unsure, acts, pick,
       el("div", { class: "cap" }, el("b", {}, pad3(sc.num)), sc.chapter ? `· ${sc.chapter}` : "", el("span", {}, f ? f.name : sc.lines[0].text)));
     ph.style.cursor = "pointer"; ph.title = "누르면 이 장면 사진만 바꿉니다 (사진을 끌어다 놓아도 됨)";
     ph.onclick = () => pick.click();

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Bagel+Fat+One&family=Gasoek+One&family=Noto+Sans+KR:wght@700;900&family=Gothic+A1:wght@800&family=Nanum+Gothic:wght@800&family=Sunflower:wght@700&family=Gowun+Dodum&family=Dongle:wght@700&family=Gugi&family=Yeon+Sung&family=Noto+Serif+KR:wght@900&family=Nanum+Myeongjo:wght@800&family=Hahmlet:wght@800&family=Song+Myung&family=Dokdo&family=East+Sea+Dokdo&family=Gaegu:wght@700&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="lib/fonts/fonts.css?v=1">
-<link rel="stylesheet" href="app.css?v=35">
+<link rel="stylesheet" href="app.css?v=36">
 </head>
 <body>
 <header class="top">
@@ -155,6 +155,16 @@
       <span>또는 클릭해서 선택 · 사진 이름이 001, 002…면 그 번호대로 들어갑니다</span>
     </label>
     <div class="row tools"><button class="btn ghost" id="img-clear">사진 모두 빼기</button></div>
+    <details class="pm-box" id="pm-box">
+      <summary><b>사진 번호가 엉망일 때 — 프롬프트 내용으로 자리 맞추기</b> <small>(AI가 사진을 보고 맞는 장면을 찾아 넣음 · 무료)</small></summary>
+      <p class="hint" style="margin:8px 0">Flow에 붙여넣었던 장면 프롬프트 코드 블록을 그대로 아래에 붙여넣고 버튼을 누르세요. 파일 이름·번호는 무시하고, 사진에 보이는 내용과 가장 비슷한 장면에 한 장씩 넣습니다. 썸네일(001) 칸의 사진은 그대로 둡니다.</p>
+      <textarea id="pm-text" class="pm-text" placeholder="2. A wide establishing shot of ...&#10;&#10;3. ..."></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="pm-run" type="button">내용으로 자리 맞추기</button>
+        <label class="btn ghost" style="cursor:pointer">프롬프트 파일 열기<input type="file" id="pm-file" accept=".txt,.md,text/plain" hidden></label>
+      </div>
+      <p class="hint" id="pm-state"></p>
+    </details>
     <div id="grid" class="grid"></div>
     <div class="sub-box" id="sub-box" hidden>
       <div class="card-head" style="margin:0 0 8px"><h2 style="font-size:17px">구독·좋아요 영상 <small>(한 번 넣으면 계속 저장)</small></h2><span class="state" id="sub-state"></span></div>
@@ -329,8 +339,9 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=52"></script>
+<script src="app.js?v=53"></script>
 <script src="gen.js?v=1"></script>
+<script src="match.js?v=1"></script>
 <script src="tts.js?v=8"></script>
 </body>
 </html>
