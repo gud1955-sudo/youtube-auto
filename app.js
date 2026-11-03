@@ -909,7 +909,7 @@ async function drawThumbMaker(pickIdx) {
   const cv = $("#tm-canvas"); if (!cv) return;
   const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
   const f = state.images.get(clipScene()) || null;
-  if (f !== tm.src) { tm.src = f; tm.bmp?.close?.(); tm.bmp = f ? await createImageBitmap(f).catch(() => null) : null; }
+  if (f !== tm.src) { tm.src = f; const nb = f ? await createImageBitmap(f).catch(() => null) : null; if (tm.src === f) tm.bmp = nb; }
   const drop = $("#tm-drop"); drop.classList.toggle("has", !!f); $("#tm-name").textContent = f ? "✓ " + f.name + " (영상 001 사진으로도 등록됨)" : "끌어다 놓거나 클릭 · 넣으면 영상의 001 사진으로도 등록됩니다";
   ctx.fillStyle = "#2a2f36"; ctx.fillRect(0, 0, W, H);
   if (tm.bmp) {
