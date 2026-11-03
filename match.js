@@ -13,7 +13,9 @@ const MATCH = {
 function parsePromptList(raw) {
   const out = new Map(); let cur = null;
   for (const line of raw.replace(/\r/g, "").split("\n")) {
-    const m = line.match(/^\s*(?:\[\s*장면\s*)?(\d{1,3})\s*(?:\]|[.)]|:)\s*(.*)$/);
+    // ① Save/export this image as "004". 프롬프트…  ② 2. 프롬프트…  ③ [장면 002] 프롬프트…
+    const m = line.match(/^\s*(?:save\s*\/\s*export|save|export|name)\b[^"“”'\n]{0,40}["“”'](\d{1,3})["“”']\s*[.:,]?\s*(.*)$/i)
+      || line.match(/^\s*(?:\[\s*장면\s*)?(\d{1,3})\s*(?:\]|[.)]|:)\s*(.*)$/);
     if (m && +m[1] > 0) { cur = +m[1]; out.set(cur, m[2].trim()); continue; }
     if (cur != null && line.trim()) out.set(cur, (out.get(cur) + " " + line.trim()).trim());
     if (!line.trim()) cur = cur; // 빈 줄은 그냥 넘김
@@ -28,7 +30,9 @@ function distinctive(prompts) {
   for (const ss of all) for (const s of new Set(ss.map((x) => x.toLowerCase()))) freq.set(s, (freq.get(s) || 0) + 1);
   const lim = Math.max(3, prompts.size * 0.25);
   const res = new Map();
-  for (const [n, t] of prompts) {
+  for (let [n, t] of prompts) {
+    // 화면 글자 넣기 지시("…text overlay reading "한태호(58)" …")는 비교에서 뺌
+    t = t.replace(/,?\s*and includes[^.]*?text overlay[\s\S]*$/i, "").replace(/[^.]*\btext (?:overlay|label)\b[^.]*\.?/gi, "");
     const keep = split(t).filter((s) => (freq.get(s.toLowerCase()) || 0) < lim)
       .map((s) => s.replace(/\b(photorealistic|cinematic|korean drama still|natural skin texture|realistic lighting|full-frame camera|16:9|no text|no watermark|no caption|no subtitle|no letterbox|no black bars)\b[^,.]*[,.]?/gi, "").trim())
       .filter((s) => s.length > 3);
