@@ -1491,21 +1491,27 @@ const MOTIONS = {
   kb: "확대하며 옆으로 이동",
 };
 const curMotion = () => ({ kind: $("#opt-motion")?.value || "alt", str: +($("#opt-motion-str")?.value || CFG.zoom) });
-function motionAt(m, p, si) {
-  const S = m.str, ease = p * p * (3 - 2 * p) * 0.35 + p * 0.65; // 부드럽게
+// 사진이 바뀔 때만 움직임이 처음부터 시작. 속도는 사진이 보이는 길이와 상관없이 항상 같은 '천천히'
+//  - 1분 동안 움직여야 정한 세기(예: 1.08배)에 닿는 속도. 짧게 보이는 사진은 그만큼 조금만 움직이고,
+//    1분보다 길게 보이는 사진은 정한 세기를 넘지 않게 더 천천히.
+const MOTION_FULL_SEC = 60;
+function motionAt(m, p, si, dur = MOTION_FULL_SEC) {
+  const amt = Math.min(1, dur / MOTION_FULL_SEC);           // 이 사진이 움직일 수 있는 양 (0~1)
+  const S = 1 + (m.str - 1) * amt;                           // 이 사진의 최대 확대
+  const ease = p;                                            // 일정한 속도 (끝까지 같은 빠르기)
   const dir = si % 2 === 0 ? 1 : -1;
   switch (m.kind) {
     case "none": return { z: 1, fx: 0 };
     case "in": return { z: 1 + (S - 1) * ease, fx: 0 };
     case "out": return { z: S - (S - 1) * ease, fx: 0 };
-    case "pan": return { z: S, fx: dir * (-1 + 2 * ease) };
+    case "pan": return { z: m.str, fx: dir * amt * (-1 + 2 * ease) };
     case "kb": return { z: 1 + (S - 1) * ease, fx: dir * ease };
     default: return si % 2 === 0 ? { z: 1 + (S - 1) * ease, fx: 0 } : { z: S - (S - 1) * ease, fx: 0 };
   }
 }
-function drawMoving(ctx, bmp, m, p, si) {
+function drawMoving(ctx, bmp, m, p, si, dur) {
   const { W, H } = CFG;
-  const { z, fx } = motionAt(m, p, si);
+  const { z, fx } = motionAt(m, p, si, dur);
   const s = Math.max(W / bmp.width, H / bmp.height) * z;
   const dw = bmp.width * s, dh = bmp.height * s;
   ctx.drawImage(bmp, (W - dw) / 2 + fx * (dw - W) / 2, (H - dh) / 2, dw, dh);
@@ -1905,8 +1911,9 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
     if (bmp && !drewVideo) {
       const a = runFirst[si], b = runLast[si];
       const st = scenes[a].start + (a === si && vids.length ? vTotal : (a === 0 && runFirstVids ? runFirstVids : 0));
-      const p = Math.min(1, Math.max(0, (t - st) / Math.max(0.001, scenes[b].end - st)));
-      drawMoving(ctx, bmp, useZoom, p, runNo[si]);
+      const spanDur = Math.max(0.001, scenes[b].end - st);   // 이 사진이 화면에 보이는 전체 길이
+      const p = Math.min(1, Math.max(0, (t - st) / spanDur));
+      drawMoving(ctx, bmp, useZoom, p, runNo[si], spanDur);
     }
     if (!drewVideo) drawFx(ctx, fxNow, t);
     const subOn = sub && t >= sub.start && t < sub.start + sub.dur;
