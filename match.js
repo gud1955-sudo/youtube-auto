@@ -113,33 +113,82 @@ async function matchAssign({ files, prompts, embedT, embedI, onProgress }) {
   });
 }
 
+// ───────── 파일 이름 ↔ 프롬프트 글자 비교 (Flow가 파일 이름을 프롬프트 요약으로 붙이는 경우) ─────────
+const STOP = new Set("a an the of in on at to and or with by for from into onto as is are be her his him she he they their its it this that these those while near over under behind beside wearing wears holding holds looking looks image photo photograph scene shot still frame korean east asian realistic photorealistic cinematic drama natural skin texture lighting camera full not illustration painting cartoon single continuous unbroken fills entire edge text watermark caption subtitle letterbox black bars mood moment reflects takes place save export png jpg jpeg webp flow generated copy final version v1 v2".split(" "));
+const stem = (w) => w.replace(/(ing|ed|es|s)$/, "").replace(/(.)\1$/, "$1");
+function toks(s) {
+  return s.replace(/\.[a-z0-9]{2,4}$/i, "").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g, " ").split(" ").filter((w) => w.length >= 2 && !STOP.has(w) && !/^\d+$/.test(w)).map(stem).filter((w) => w.length >= 2);
+}
+function nameMatch(files, prompts) {
+  const nums = [...prompts.keys()].sort((a, b) => a - b);
+  // 프롬프트에서 화면 글자 지시·공통 문구 빼고 단어 모음
+  const docs = nums.map((n) => toks(prompts.get(n).replace(/,?\s*and includes[^.]*?text overlay[\s\S]*$/i, "")));
+  const df = new Map(); for (const d of docs) for (const w of new Set(d)) df.set(w, (df.get(w) || 0) + 1);
+  const idf = (w) => Math.log((nums.length + 1) / ((df.get(w) || 0) + 0.5));
+  const vecOf = (ws) => { const v = new Map(); for (const w of ws) if (df.has(w)) v.set(w, (v.get(w) || 0) + idf(w)); return v; };
+  const nrm = (v) => Math.sqrt([...v.values()].reduce((a, x) => a + x * x, 0)) || 1;
+  const pV = docs.map(vecOf), pN = pV.map(nrm);
+  const fileInfo = files.map((f) => {
+    const base = f.name.replace(/^.*[\\/]/, "");
+    const v = vecOf(toks(base));
+    const numM = base.replace(/\.[^.]+$/, "").match(/(?:^|[^\d])(\d{3})(?!\d)/); // 이름 속 세 자리 번호(있으면 가산점)
+    return { v, n: nrm(v), words: v.size, num: numM ? +numM[1] : null };
+  });
+  const sim = fileInfo.map((fi) => pV.map((pv, j) => {
+    let s = 0; for (const [w, x] of fi.v) if (pv.has(w)) s += x * pv.get(w);
+    s = fi.words ? s / (fi.n * pN[j]) : 0;
+    if (fi.num != null && fi.num === nums[j]) s += 0.6;
+    return s;
+  }));
+  return { nums, sim, fileInfo };
+}
+
 async function runPromptMatch() {
   const raw = $("#pm-text").value.trim();
   const st = $("#pm-state");
   const prompts = parsePromptList(raw);
-  if (prompts.size < 2) { st.textContent = "프롬프트를 찾지 못했습니다. Flow에 넣었던 '2. ...', '3. ...' 형식 그대로 붙여넣어 주세요."; st.className = "hint msg-err"; return; }
-  // 대상 사진: 썸네일(001) 칸에 넣은 사진은 빼고, 지금 들어 있는 장면 사진 전부
+  if (prompts.size < 2) { st.textContent = "프롬프트를 찾지 못했습니다. Flow에 넣었던 프롬프트를 그대로 붙여넣어 주세요."; st.className = "hint msg-err"; return; }
   const fixed = state.thumbFixed;
   const pool = [...new Set([...state.images.values(), ...state.imageOrder].filter((f) => f && f !== fixed))];
   if (!pool.length) { st.textContent = "먼저 아래 '장면 사진' 칸에 사진을 넣어 주세요."; st.className = "hint msg-err"; return; }
+  const useAI = $("#pm-ai")?.checked;
   const btn = $("#pm-run"); btn.disabled = true;
   try {
-    await matchLoad((m) => { st.textContent = m; st.className = "hint"; });
-    const res = await matchAssign({ files: pool, prompts, embedT: embedTexts, embedI: embedImage,
-      onProgress: (i, n) => { st.textContent = `사진 살펴보는 중… ${i} / ${n}`; } });
-    // 다시 배치 (001 썸네일은 그대로)
+    // ① 파일 이름 글자 비교 (기본, 빠르고 정확)
+    const { nums, sim, fileInfo } = nameMatch(pool, prompts);
+    // ② (선택) 사진 내용 AI 비교를 더함
+    if (useAI) {
+      await matchLoad((m) => { st.textContent = m; st.className = "hint"; });
+      const texts = distinctive(prompts), tE = await embedTexts(nums.map((n) => texts.get(n)));
+      for (let i = 0; i < pool.length; i++) {
+        st.textContent = `사진 살펴보는 중… ${i + 1} / ${pool.length}`;
+        const e = await embedImage(pool[i]); const row = tE.map((t) => dot(e, t));
+        const mx = Math.max(...row), mn = Math.min(...row);
+        // 이름 단서가 없는 사진일수록 AI 비중을 크게
+        const w = fileInfo[i].words ? 0.35 : 1;
+        row.forEach((x, j) => (sim[i][j] += w * (mx > mn ? (x - mn) / (mx - mn) : 0)));
+      }
+    }
+    const asg = hungarian(sim.map((row) => row.map((x) => -x)));
     for (const k of [...state.images.keys()]) if (!(fixed && k === clipScene())) state.images.delete(k);
-    state.imageOrder = [];
-    state.matchUnsure = new Set();
-    let placed = 0;
-    for (const r of res) if (r.num != null) { state.images.set(r.num, r.file); placed++; if (!r.sure) state.matchUnsure.add(r.num); }
-    const left = res.filter((r) => r.num == null).length;
-    st.textContent = `✓ 사진 ${placed}장을 내용에 맞는 장면에 넣었습니다` + (state.matchUnsure.size ? ` · 헷갈린 ${state.matchUnsure.size}장은 '확인'으로 표시했으니 한 번 봐 주세요` : "") + (left ? ` · 남은 ${left}장은 맞는 장면이 없어 뺐습니다` : "");
+    state.imageOrder = []; state.matchUnsure = new Set();
+    let placed = 0, noName = 0;
+    pool.forEach((f, i) => {
+      const j = asg[i]; if (j < 0) return;
+      const row = sim[i], s = row[j], second = Math.max(-1, ...row.filter((_, k) => k !== j));
+      state.images.set(nums[j], f); placed++;
+      if (!fileInfo[i].words && !useAI) noName++;
+      if (s <= 0.05 || s - second < 0.05) state.matchUnsure.add(nums[j]);
+    });
+    st.textContent = `✓ 사진 ${placed}장을 파일 이름${useAI ? "·사진 내용" : ""}으로 프롬프트와 맞춰 넣었습니다`
+      + (state.matchUnsure.size ? ` · 헷갈린 ${state.matchUnsure.size}장은 '확인'으로 표시했습니다` : "")
+      + (noName ? ` · 이름에 단서가 없는 사진 ${noName}장이 있어요 — 'AI로 사진 내용도 보기'를 켜고 다시 눌러 보세요` : "");
     st.className = "hint state ok";
     if (state.auto) onScriptChange(); else renderGrid();
   } catch (e) {
     console.error(e);
-    st.textContent = "AI를 불러오지 못했습니다: " + (e.message || e) + " — 인터넷 연결을 확인하고 다시 눌러 주세요.";
+    st.textContent = "자리 맞추기 실패: " + (e.message || e);
     st.className = "hint msg-err";
   } finally { btn.disabled = false; }
 }
@@ -149,4 +198,4 @@ function initPromptMatch() {
   $("#pm-file").onchange = async (e) => { const f = e.target.files[0]; if (f) $("#pm-text").value = await f.text(); e.target.value = ""; };
 }
 if (typeof window !== "undefined") window.addEventListener("load", () => setTimeout(initPromptMatch, 0));
-if (typeof module !== "undefined") module.exports = { parsePromptList, distinctive, hungarian, matchAssign, norm };
+if (typeof module !== "undefined") module.exports = { parsePromptList, distinctive, hungarian, matchAssign, norm, nameMatch, toks };
