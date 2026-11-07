@@ -1494,7 +1494,7 @@ const curMotion = () => ({ kind: $("#opt-motion")?.value || "alt", str: +($("#op
 // 사진이 바뀔 때만 움직임이 처음부터 시작. 속도는 사진이 보이는 길이와 상관없이 항상 같은 '천천히'
 //  - 1분 동안 움직여야 정한 세기(예: 1.08배)에 닿는 속도. 짧게 보이는 사진은 그만큼 조금만 움직이고,
 //    1분보다 길게 보이는 사진은 정한 세기를 넘지 않게 더 천천히.
-const MOTION_FULL_SEC = 60;
+const MOTION_FULL_SEC = 40; // 40초 보이는 사진이면 정한 세기까지 (더 길면 그 시간에 걸쳐 더 천천히)
 function motionAt(m, p, si, dur = MOTION_FULL_SEC) {
   const amt = Math.min(1, dur / MOTION_FULL_SEC);           // 이 사진이 움직일 수 있는 양 (0~1)
   const S = 1 + (m.str - 1) * amt;                           // 이 사진의 최대 확대
@@ -1693,7 +1693,7 @@ function initPreview() {
   new IntersectionObserver((es) => (es[0].isIntersecting ? start() : stop())).observe(cv);
   // 설정 저장
   const keep = (id, key) => { const e = $(id); e.addEventListener("input", () => { store.set(key, e.value); if (id === "#opt-motion") { t0 = performance.now(); seg = -1; } }); };
-  keep("#opt-subsize", "subSize"); keep("#opt-motion", "motion"); keep("#opt-motion-str", "motionStr"); keep("#opt-font", "subFont");
+  keep("#opt-subsize", "subSize"); keep("#opt-motion", "motion"); keep("#opt-motion-str", "motionStr2"); keep("#opt-font", "subFont");
   keep("#opt-fx", "fx"); keep("#opt-fx-amt", "fxAmt");
   $("#opt-vig").addEventListener("change", () => store.set("vig", $("#opt-vig").checked));
   (async () => { $("#opt-fx").value = await store.get("fx", "none"); $("#opt-fx-amt").value = await store.get("fxAmt", "1"); $("#opt-vig").checked = await store.get("vig", false); })();
@@ -1704,7 +1704,7 @@ function initPreview() {
   $("#subsize-plus").onclick = () => { const e = $("#opt-subsize"); e.value = +e.value + 2; e.dispatchEvent(new Event("input")); };
   (async () => {
     $("#opt-subsize").value = await store.get("subSize", 86); $("#opt-motion").value = await store.get("motion", "alt");
-    $("#opt-motion-str").value = await store.get("motionStr", "1.08");
+    { const v = await store.get("motionStr2", "1.18"); const e = $("#opt-motion-str"); e.value = [...e.options].some((o) => o.value === String(v)) ? v : "1.18"; }
     const sf = await store.get("subFont", "Jua|400"); if ([...$("#opt-font").options].some((o) => o.value === sf)) $("#opt-font").value = sf;
     loadSubFont(); sync();
   })();
