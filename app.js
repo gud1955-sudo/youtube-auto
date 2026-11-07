@@ -1671,7 +1671,7 @@ function initPreview() {
     if (seg < clips.length) {
       const v = vidFor(clips[seg]);
       if (v.readyState >= 2) { const s = Math.max(CFG.W / v.videoWidth, CFG.H / v.videoHeight), dw = v.videoWidth * s, dh = v.videoHeight * s; ctx.drawImage(v, (CFG.W - dw) / 2, (CFG.H - dh) / 2, dw, dh); }
-      capNote = `🎬 영상 ${seg + 1} 재생 중 · `;
+      capNote = `🎬 인트로 영상 재생 중 · `;
     } else {
       const img = await pvSample();
       const si = seg - clips.length, p = Math.min(1, ts / CYCLE);
@@ -1845,7 +1845,7 @@ async function render({ scenes, tl, cues, useZoom, subSize, writable, mock, t0 }
   const mixes = [];
   const clipVol = Math.max(0, Math.min(2, (+($("#opt-clipvol")?.value ?? 100)) / 100));
   if (clipVol > 0 && vids.length) {
-    setStage("하이라이트 영상 소리 준비 중…", 0.25);
+    setStage("인트로 영상 소리 준비 중…", 0.25);
     let off = 0;
     const list = state.videos.get(scenes[0].num) || [];
     for (let k = 0; k < vids.length; k++) {

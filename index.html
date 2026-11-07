@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Bagel+Fat+One&family=Gasoek+One&family=Noto+Sans+KR:wght@700;900&family=Gothic+A1:wght@800&family=Nanum+Gothic:wght@800&family=Sunflower:wght@700&family=Gowun+Dodum&family=Dongle:wght@700&family=Gugi&family=Yeon+Sung&family=Noto+Serif+KR:wght@900&family=Nanum+Myeongjo:wght@800&family=Hahmlet:wght@800&family=Song+Myung&family=Dokdo&family=East+Sea+Dokdo&family=Gaegu:wght@700&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="lib/fonts/fonts.css?v=1">
-<link rel="stylesheet" href="app.css?v=36">
+<link rel="stylesheet" href="app.css?v=37">
 </head>
 <body>
 <header class="top">
@@ -130,15 +130,10 @@
   <!-- 4. 사진 -->
   <section class="card" id="sec-images">
     <div class="card-head"><span class="num">4</span><h2>영상 · 사진 넣기</h2><span class="state" id="img-state"></span></div>
-    <h3 class="subhead">맨 앞 하이라이트 영상 · 썸네일 <small>(영상 1 → 영상 2가 맨 처음에 나오고, 끝나면 썸네일 사진과 함께 대본 낭독이 시작됩니다 · 영상 1개만 넣어도 됩니다)</small></h3>
+    <h3 class="subhead">인트로 영상 · 썸네일 <small>(인트로 영상이 맨 처음에 나오고, 끝나면 썸네일 사진과 함께 대본 낭독이 시작됩니다)</small></h3>
     <div class="clip-row">
       <div class="clip-slot" data-part="1">
-        <label class="drop small"><input type="file" accept="video/*" hidden><strong>영상 1</strong><span class="clip-name">끌어다 놓거나 클릭</span></label>
-        <video muted playsinline hidden></video>
-        <button class="btn ghost clip-del" hidden>빼기</button>
-      </div>
-      <div class="clip-slot" data-part="2">
-        <label class="drop small"><input type="file" accept="video/*" hidden><strong>영상 2</strong><span class="clip-name">끌어다 놓거나 클릭</span></label>
+        <label class="drop small"><input type="file" accept="video/*" hidden><strong>인트로 영상</strong><span class="clip-name">끌어다 놓거나 클릭</span></label>
         <video muted playsinline hidden></video>
         <button class="btn ghost clip-del" hidden>빼기</button>
       </div>
@@ -250,7 +245,7 @@
   <section class="card" id="sec-build">
     <div class="card-head"><span class="num">5</span><h2>영상 만들기</h2></div>
     <div class="opts">
-      <label><input type="checkbox" id="opt-preview"> 미리보기: 처음 <input type="number" id="opt-preview-n" value="1" min="0.5" max="30" step="0.5"> 분만 만들기 <small>(하이라이트 영상 + 낭독 1분)</small></label>
+      <label><input type="checkbox" id="opt-preview"> 미리보기: 처음 <input type="number" id="opt-preview-n" value="1" min="0.5" max="30" step="0.5"> 분만 만들기 <small>(인트로 영상 + 낭독 1분)</small></label>
       <label data-mode="google"><input type="checkbox" id="opt-mock"> 무음 테스트 (음성 없이 사진 전환·자막 위치만 확인)</label>
       <label><input type="checkbox" id="opt-sub" checked> 자막 넣기</label>
     </div>
@@ -284,12 +279,12 @@
           <div class="ctl-h" style="margin-top:10px">효과 양</div>
           <select id="opt-fx-amt"><option value="0.6">적게</option><option value="1" selected>보통</option><option value="1.6">많이</option></select>
           <label style="display:block;margin-top:10px"><input type="checkbox" id="opt-vig"> 가장자리 살짝 어둡게 (영화 느낌)</label>
-          <small>사진 위에만 들어갑니다 (맨 앞 하이라이트 영상에는 안 들어감)</small>
+          <small>사진 위에만 들어갑니다 (인트로 영상에는 안 들어감)</small>
         </div>
         <div class="ctl">
-          <div class="ctl-h">하이라이트 영상 소리 <b id="opt-clipvol-val">100%</b></div>
+          <div class="ctl-h">인트로 영상 소리 <b id="opt-clipvol-val">100%</b></div>
           <input type="range" id="opt-clipvol" min="0" max="150" step="5" value="100" style="width:100%">
-          <small>0% = 소리 없음 · 100% = 원래 크기 · 영상 1·2 자체 소리(효과음 등)</small>
+          <small>0% = 소리 없음 · 100% = 원래 크기 · 인트로 영상 자체 소리(효과음 등)</small>
         </div>
         <div class="ctl">
           <div class="ctl-h">사진 움직임</div>
@@ -340,7 +335,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=56"></script>
+<script src="app.js?v=57"></script>
 <script src="gen.js?v=1"></script>
 <script src="match.js?v=3"></script>
 <script src="tts.js?v=8"></script>
