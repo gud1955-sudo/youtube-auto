@@ -1704,7 +1704,7 @@ function initPreview() {
   $("#subsize-plus").onclick = () => { const e = $("#opt-subsize"); e.value = +e.value + 2; e.dispatchEvent(new Event("input")); };
   (async () => {
     $("#opt-subsize").value = await store.get("subSize", 86); $("#opt-motion").value = await store.get("motion", "alt");
-    { const v = await store.get("motionStr2", "1.18"); const e = $("#opt-motion-str"); e.value = [...e.options].some((o) => o.value === String(v)) ? v : "1.18"; }
+    { let v = String(await store.get("motionStr2", "1.2")); if (v === "1.18") v = "1.2"; const e = $("#opt-motion-str"); e.value = [...e.options].some((o) => o.value === v) ? v : "1.2"; }
     const sf = await store.get("subFont", "Jua|400"); if ([...$("#opt-font").options].some((o) => o.value === sf)) $("#opt-font").value = sf;
     loadSubFont(); sync();
   })();
