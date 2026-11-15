@@ -219,3 +219,20 @@ select.gvoice { flex: 1; min-width: 260px; }
 .pm-box summary small { color: var(--muted); }
 textarea.pm-text { min-height: 120px; height: 140px; font-size: 13px; }
 .tile .unsure { position: absolute; bottom: 52px; left: 6px; font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: #e7a52b; color: #1f1d1a; }
+.tm-edit { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: #fff; display: flex; flex-direction: column; gap: 10px; }
+.tm-edit-h { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.tm-edit-h small { color: var(--muted); }
+.tm-seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.tm-seg button { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 4px; border: 0; background: #faf8f4; color: var(--ink, #222); cursor: pointer; }
+.tm-seg button + button { border-left: 1px solid var(--line); }
+.tm-seg button.on { background: var(--accent); color: #fff; }
+.tm-knob { display: grid; grid-template-columns: 34px 20px 1fr 20px 46px; align-items: center; gap: 6px; font-size: 14px; }
+.tm-k-l { font-weight: 600; }
+.tm-k-s { color: var(--muted); font-size: 12px; text-align: center; }
+.tm-knob input[type=range] { width: 100%; height: 26px; accent-color: var(--accent); cursor: pointer; }
+.tm-knob b { text-align: right; font-variant-numeric: tabular-nums; }
+.tm-knob .tm-colors { grid-column: 2 / -1; }
+.tm-colors { display: grid; grid-template-columns: repeat(4, 1fr); height: 34px; border-radius: 8px; overflow: hidden; border: 2px solid #222; cursor: ew-resize; touch-action: none; user-select: none; }
+.tm-colors i { display: block; position: relative; }
+.tm-colors i.on::after { content: ""; position: absolute; inset: 4px; border: 3px solid #000; border-radius: 4px; box-shadow: 0 0 0 2px #fff inset; }
+#tm-canvas { touch-action: none; }

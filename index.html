@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Bagel+Fat+One&family=Gasoek+One&family=Noto+Sans+KR:wght@700;900&family=Gothic+A1:wght@800&family=Nanum+Gothic:wght@800&family=Sunflower:wght@700&family=Gowun+Dodum&family=Dongle:wght@700&family=Gugi&family=Yeon+Sung&family=Noto+Serif+KR:wght@900&family=Nanum+Myeongjo:wght@800&family=Hahmlet:wght@800&family=Song+Myung&family=Dokdo&family=East+Sea+Dokdo&family=Gaegu:wght@700&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="lib/fonts/fonts.css?v=1">
-<link rel="stylesheet" href="app.css?v=37">
+<link rel="stylesheet" href="app.css?v=38">
 </head>
 <body>
 <header class="top">
@@ -192,8 +192,7 @@
           <input type="file" id="tm-input" accept="image/*" hidden>
           <strong>썸네일 사진 넣기</strong><span id="tm-name">끌어다 놓거나 클릭 · 넣으면 영상의 001 사진으로도 등록됩니다</span>
         </label>
-        <label class="tm-field"><span><span>위 대사 <small>(미리보기에서 끌어서 이동 · 모서리 □ 끌어서 크기)</small></span><button class="btn ghost sm" id="tm-qreset" type="button" style="font-size:12px;padding:3px 8px">처음대로</button></span><input type="text" id="tm-quote" placeholder="예: 내 사람 옆에서 비켜요!"></label>
-        <div class="tm-row"><label>대사 크기 <input type="range" id="tm-qsize" min="35" max="300" step="5" value="100"></label></div>
+        <label class="tm-field"><span>위 대사</span><input type="text" id="tm-quote" placeholder="예: 내 사람 옆에서 비켜요!"></label>
         <div class="tm-field"><span>제목 3개 <small>(한 번에 입력 → 자동 두 줄 · 고른 제목이 미리보기에 보임)</small></span></div>
         <div class="tm-title-row on" data-i="1">
           <div class="tm-title-h"><label><input type="radio" name="tm-pick" value="1" checked> 제목 1</label><button class="btn ghost sm tm-dl" type="button" data-i="1">⬇ 다운로드</button></div>
@@ -208,10 +207,37 @@
           <textarea id="tm-title3" class="tm-title" rows="2" placeholder="세 번째 제목 (다른 버전)"></textarea>
         </div>
 
-        <div class="tm-row"><label>윗줄 색 <input type="color" id="tm-c1" value="#3cff2e"></label><label>아랫줄 색 <input type="color" id="tm-c2" value="#fff200"></label><small>직접 나누고 싶으면 줄바꿈(Enter)</small></div>
+        <div class="tm-row"><small>제목을 직접 나누고 싶으면 줄바꿈(Enter)</small></div>
+        <!-- 글자 상자 편집 -->
+        <div class="tm-edit" id="tm-edit">
+          <div class="tm-edit-h"><b>글자 고치기</b><small>미리보기에서 글자를 눌러 고르거나 아래에서 고르세요</small></div>
+          <div class="tm-seg" id="tm-seg">
+            <button type="button" data-l="q">위 대사</button><button type="button" data-l="t1" class="on">제목 윗줄</button><button type="button" data-l="t2">제목 아랫줄</button>
+          </div>
+          <div class="tm-knob">
+            <span class="tm-k-l">크기</span><span class="tm-k-s">작게</span>
+            <input type="range" id="tm-ksize" min="30" max="300" step="1" value="100">
+            <span class="tm-k-s">크게</span><b id="tm-ksize-v">100%</b>
+          </div>
+          <div class="tm-knob">
+            <span class="tm-k-l">회전</span><span class="tm-k-s">↺</span>
+            <input type="range" id="tm-krot" min="-45" max="45" step="1" value="0">
+            <span class="tm-k-s">↻</span><b id="tm-krot-v">0°</b>
+          </div>
+          <div class="tm-knob">
+            <span class="tm-k-l">색</span>
+            <div class="tm-colors" id="tm-colors" title="눌러서 고르거나, 누른 채 좌우로 끌면 색이 바뀝니다">
+              <i data-c="#ffffff" style="background:#ffffff"></i><i data-c="#ffe600" style="background:#ffe600"></i><i data-c="#ff2b2b" style="background:#ff2b2b"></i><i data-c="#39ff14" style="background:#39ff14"></i>
+            </div>
+          </div>
+          <div class="row" style="gap:6px;margin-top:4px">
+            <button class="btn ghost sm" id="tm-kreset" type="button">이 글자 처음대로</button>
+            <button class="btn ghost sm" id="tm-kreset-all" type="button">전체 처음대로</button>
+          </div>
+        </div>
         <div class="tm-row">
           <label>글꼴 <select id="tm-font"></select></label>
-          <label>최대 크기 <select id="tm-size"><option value="0.8">보통</option><option value="1" selected>크게</option><option value="1.2">아주 크게</option></select></label>
+          <input type="hidden" id="tm-size" value="1">
         </div>
         <div class="tm-row">
           <label>글자 세로로 늘리기 <select id="tm-stretch"><option value="fill" selected>제목 높이를 꽉 채우게 (최대)</option><option value="3">3배</option><option value="2.5">2.5배</option><option value="2">2배</option><option value="1.5">1.5배</option><option value="1">안 늘림</option></select></label>
@@ -236,7 +262,7 @@
       </div>
       <figure class="look tm-look">
         <canvas id="tm-canvas" width="1280" height="720"></canvas>
-        <figcaption>썸네일 미리보기 (실제 저장 모습) · 위 대사는 마우스로 끌어서 옮길 수 있습니다</figcaption>
+        <figcaption>글자를 눌러 고른 뒤 — 끌면 이동 · 오른쪽 아래 □ 끌면 크기 · 위쪽 ○ 끌면 회전 (점선·손잡이는 저장되지 않음)</figcaption>
       </figure>
     </div>
   </section>
@@ -335,7 +361,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=57"></script>
+<script src="app.js?v=58"></script>
 <script src="gen.js?v=1"></script>
 <script src="match.js?v=3"></script>
 <script src="tts.js?v=8"></script>
