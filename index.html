@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Bagel+Fat+One&family=Gasoek+One&family=Noto+Sans+KR:wght@700;900&family=Gothic+A1:wght@800&family=Nanum+Gothic:wght@800&family=Sunflower:wght@700&family=Gowun+Dodum&family=Dongle:wght@700&family=Gugi&family=Yeon+Sung&family=Noto+Serif+KR:wght@900&family=Nanum+Myeongjo:wght@800&family=Hahmlet:wght@800&family=Song+Myung&family=Dokdo&family=East+Sea+Dokdo&family=Gaegu:wght@700&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="lib/fonts/fonts.css?v=1">
-<link rel="stylesheet" href="app.css?v=38">
+<link rel="stylesheet" href="app.css?v=39">
 </head>
 <body>
 <header class="top">
@@ -230,7 +230,9 @@
               <i data-c="#ffffff" style="background:#ffffff"></i><i data-c="#ffe600" style="background:#ffe600"></i><i data-c="#ff2b2b" style="background:#ff2b2b"></i><i data-c="#39ff14" style="background:#39ff14"></i>
             </div>
           </div>
+          <p class="tm-pickinfo" id="tm-pickinfo">제목·대사 칸에서 글자를 드래그로 고르면 그 부분만 색을 바꿀 수 있습니다</p>
           <div class="row" style="gap:6px;margin-top:4px">
+            <button class="btn ghost sm" id="tm-spanclear" type="button">글자별 색 지우기</button>
             <button class="btn ghost sm" id="tm-kreset" type="button">이 글자 처음대로</button>
             <button class="btn ghost sm" id="tm-kreset-all" type="button">전체 처음대로</button>
           </div>
@@ -361,7 +363,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=58"></script>
+<script src="app.js?v=59"></script>
 <script src="gen.js?v=1"></script>
 <script src="match.js?v=3"></script>
 <script src="tts.js?v=8"></script>

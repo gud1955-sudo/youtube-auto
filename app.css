@@ -236,3 +236,5 @@ textarea.pm-text { min-height: 120px; height: 140px; font-size: 13px; }
 .tm-colors i { display: block; position: relative; }
 .tm-colors i.on::after { content: ""; position: absolute; inset: 4px; border: 3px solid #000; border-radius: 4px; box-shadow: 0 0 0 2px #fff inset; }
 #tm-canvas { touch-action: none; }
+.tm-pickinfo { margin: 0; font-size: 13px; color: var(--muted); }
+.tm-pickinfo.on { color: var(--accent); font-weight: 600; }
