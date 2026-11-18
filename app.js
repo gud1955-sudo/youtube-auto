@@ -972,14 +972,19 @@ async function drawThumbMaker(pickIdx, forSave = false) {
   const pi = 1; // 제목은 한 칸
   const raw = $(`#tm-title${pi}`).value;
   const q = $("#tm-quote").value.trim();
-  const maxW = W - 36;
+  const maxW = W - 40;
+  // 실제로 칠해지는 폭 (글자 테두리·따옴표처럼 튀어나오는 부분까지)
+  const ink = (text, fs) => { ctx.font = fontCss(fs); const m = ctx.measureText(text); const sw = Math.max(6, fs * 0.2);
+    return { w: m.actualBoundingBoxLeft + m.actualBoundingBoxRight + sw, l: m.actualBoundingBoxLeft + sw / 2, r: m.actualBoundingBoxRight + sw / 2, a: m.actualBoundingBoxAscent + sw / 2, d: m.actualBoundingBoxDescent + sw / 2, adv: m.width }; };
+  const fitInk = (text, fs, lim) => { for (let i = 0; i < 4; i++) { const w = ink(text, fs).w; if (w <= lim) break; fs = Math.floor(fs * lim / w); } return fs; };
+  tm.fontCss = fontCss;
   // ① 자동 배치 (기준 위치·크기) ─ 제목 2줄은 폭에 맞춰 최대한 크게 + 세로로 늘림
   const base = {};
   const lines2 = (raw.includes("\n") ? splitTitleN(raw, 0) : splitTitle(raw)).filter(Boolean);
   if (lines2.length > 2) lines2.splice(1, lines2.length, lines2.slice(1).join(" "));
   if (lines2.length) {
     let fs = 150;
-    for (const l of lines2) fs = Math.min(fs, fitSize(ctx, l, fs, maxW, font));
+    for (const l of lines2) fs = Math.min(fs, fitInk(l, fs, maxW));
     const maxH = H * (+$("#tm-area").value), n = lines2.length, gap = 1.06;
     const sv = $("#tm-stretch").value;
     let st = sv === "fill" ? maxH / (n * fs * gap) : +sv;
@@ -989,12 +994,12 @@ async function drawThumbMaker(pickIdx, forSave = false) {
     lines2.forEach((l, i) => { base[i === 0 ? "t1" : "t2"] = { text: l, fs, st, cx: W / 2, cy: H - 24 - (n - 1 - i) * lh - fs * st * 0.36 }; });
   }
   if (q) {
-    const qs = fitSize(ctx, q, 62, W * 0.9, font);
-    ctx.font = fontCss(qs); const qw = ctx.measureText(q).width;
-    base.q = { text: q, fs: qs, st: 1, cx: W - 60 - qw / 2, cy: 64 };
+    const qs = fitInk(q, 62, W - 60);
+    const qi = ink(q, qs);
+    base.q = { text: q, fs: qs, st: 1, cx: W - 30 - qi.r, cy: 30 + qi.a };
   }
   // ② 사용자 조정(이동·크기·회전·색)을 얹어서 그리기
-  tm.boxes = {};
+  tm.boxes = {}; tm.lines = [];
   // 한 줄 그리기 (지금 좌표계의 0,0 이 줄 가운데) — 글자마다 색
   const drawLine = (B, baseColor, src, tw) => {
     ctx.save(); ctx.scale(1, B.st);
@@ -1018,25 +1023,44 @@ async function drawThumbMaker(pickIdx, forSave = false) {
   const tl = ["t1", "t2"].filter((k) => base[k]);
   if (tl.length) {
     const U = tm.L.t;
-    const widths = tl.map((k) => { ctx.font = fontCss(base[k].fs); return ctx.measureText(base[k].text).width; });
-    const tops = tl.map((k) => base[k].cy - base[k].fs * base[k].st * 0.55), bots = tl.map((k) => base[k].cy + base[k].fs * base[k].st * 0.55);
+    const inks = tl.map((k) => { ctx.textBaseline = "middle"; return ink(base[k].text, base[k].fs); });
+    const widths = inks.map((x) => x.adv);
+    // 기본 위치에서 아래 테두리가 화면 밖으로 나가지 않게 살짝 올림
+    { const lowest = Math.max(...tl.map((k, i) => base[k].cy + inks[i].d * base[k].st)); const over = lowest - (H - 16); if (over > 0) tl.forEach((k) => (base[k].cy -= over)); }
+    const tops = tl.map((k, i) => base[k].cy - inks[i].a * base[k].st), bots = tl.map((k, i) => base[k].cy + inks[i].d * base[k].st);
     const gcx = W / 2, gcy = (Math.min(...tops) + Math.max(...bots)) / 2;
     const cx = gcx + U.dx, cy = gcy + U.dy, rot = U.rot * Math.PI / 180;
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.scale(U.k, U.k);
     tl.forEach((k, i) => { ctx.save(); ctx.translate(base[k].cx - gcx, base[k].cy - gcy); drawLine(base[k], tm.L[k].color, pi, widths[i]); ctx.restore(); });
     ctx.restore();
-    tm.boxes.t = { cx, cy, rot, w: Math.max(...widths) * U.k + 24, h: (Math.max(...bots) - Math.min(...tops)) * U.k + 12 };
+    tm.boxes.t = { cx, cy, rot, w: Math.max(...inks.map((x) => x.w)) * U.k + 8, h: (Math.max(...bots) - Math.min(...tops)) * U.k + 8 };
+    tm.lines = tl.map((k, i) => ({ g: "t", key: k, src: pi, B: base[k], tw: widths[i], ox: base[k].cx - gcx, oy: base[k].cy - gcy }));
   }
   if (base.q) {
     const B = base.q, U = tm.L.q;
-    ctx.font = fontCss(B.fs); const tw = ctx.measureText(B.text).width;
+    ctx.textBaseline = "middle"; const qi = ink(B.text, B.fs); const tw = qi.adv;
     const cx = B.cx + U.dx, cy = B.cy + U.dy, rot = U.rot * Math.PI / 180;
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.scale(U.k, U.k); drawLine(B, U.color, "q", tw); ctx.restore();
-    tm.boxes.q = { cx, cy, rot, w: tw * U.k + 24, h: B.fs * U.k * 1.1 + 12 };
+    tm.boxes.q = { cx, cy, rot, w: qi.w * U.k + 8, h: (qi.a + qi.d) * U.k + 8 };
+    tm.lines = [...(tm.lines || []).filter((x) => x.g !== "q"), { g: "q", key: "q", src: "q", B, tw, ox: 0, oy: 0 }];
+  }
+  // 미리보기에서 고른 글자 범위 표시 (저장할 때는 안 그림)
+  if (!forSave && tm.tsel) {
+    const li = tm.lines.find((x) => x.g === tm.tsel.g && x.key === tm.tsel.key);
+    if (li) {
+      const a = Math.min(tm.tsel.a, tm.tsel.b), b = Math.max(tm.tsel.a, tm.tsel.b), chars = [...li.B.text];
+      ctx.font = fontCss(li.B.fs);
+      const x0 = -li.tw / 2 + ctx.measureText(chars.slice(0, a).join("")).width, x1 = -li.tw / 2 + ctx.measureText(chars.slice(0, b).join("")).width;
+      const bx = tm.boxes[li.g], k = tm.L[li.g].k;
+      ctx.save(); ctx.translate(bx.cx, bx.cy); ctx.rotate(bx.rot); ctx.scale(k, k); ctx.translate(li.ox, li.oy); ctx.scale(1, li.B.st);
+      ctx.fillStyle = "rgba(0,150,255,.38)"; ctx.fillRect(x0, -li.B.fs * 0.55, Math.max(4, x1 - x0), li.B.fs * 1.1);
+      ctx.strokeStyle = "#00a2ff"; ctx.lineWidth = 3; ctx.strokeRect(x0, -li.B.fs * 0.55, Math.max(4, x1 - x0), li.B.fs * 1.1);
+      ctx.restore();
+    }
   }
   // ③ 고른 글자 상자 표시 (저장할 때는 안 그림)
   const bx = tm.boxes[tm.sel];
-  if (!forSave && tm.editing && bx) {
+  if (!forSave && tm.editing && bx && !tm.tsel) {
     ctx.save(); ctx.translate(bx.cx, bx.cy); ctx.rotate(bx.rot);
     ctx.setLineDash([12, 7]); ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.strokeRect(-bx.w / 2, -bx.h / 2, bx.w, bx.h);
     ctx.setLineDash([12, 7]); ctx.lineDashOffset = 9.5; ctx.strokeStyle = "#000"; ctx.lineWidth = 1.5; ctx.strokeRect(-bx.w / 2, -bx.h / 2, bx.w, bx.h);
@@ -1120,10 +1144,54 @@ function initThumbMaker() {
     for (const key of ["q", "t"]) { const bx = tm.boxes[key]; if (!bx) continue; const l = local(bx, p); if (Math.abs(l.x) <= bx.w / 2 + 6 && Math.abs(l.y) <= bx.h / 2 + 6) return { key, part: "move" }; }
     return null;
   };
+  // ── 글자 고르기 모드: 글자를 두 번 클릭 → 끌어서 범위 → 색 누르기 ──
+  const lineAt = (p) => {
+    for (const li of tm.lines || []) {
+      const bx = tm.boxes[li.g]; if (!bx) continue;
+      const k = tm.L[li.g].k, l = local(bx, p);
+      const x = l.x / k - li.ox, y = (l.y / k - li.oy) / li.B.st;
+      if (Math.abs(y) <= li.B.fs * 0.6 && Math.abs(x) <= li.tw / 2 + 10) return { li, x };
+    }
+    return null;
+  };
+  const charAt = (li, x) => {
+    ctx2.font = tm.fontCss(li.B.fs); const chars = [...li.B.text]; let acc = -li.tw / 2;
+    for (let i = 0; i < chars.length; i++) { const w = ctx2.measureText(chars[i]).width; if (x < acc + w / 2) return i; acc += w; }
+    return chars.length;
+  };
+  const ctx2 = cv.getContext("2d");
+  const setPick = () => {
+    const ts = tm.tsel; if (!ts) return;
+    const li = tm.lines.find((x) => x.g === ts.g && x.key === ts.key); if (!li) return;
+    const a = Math.min(ts.a, ts.b), b = Math.max(ts.a, ts.b), t = [...li.B.text].slice(a, b).join("").trim();
+    if (t) { tm.pickSel = { src: li.src, t }; $("#tm-pickinfo").textContent = `고른 글자: "${t}" → 색을 누르면 이 글자만 바뀝니다 (빈 곳 클릭하면 끝)`; $("#tm-pickinfo").classList.add("on"); }
+  };
+  cv.addEventListener("dblclick", (e) => {
+    const r = lineAt(pos(e)); if (!r) return;
+    const chars = [...r.li.B.text], i = Math.min(chars.length - 1, charAt(r.li, r.x));
+    let a = i, b = i + 1; while (a > 0 && chars[a - 1] !== " ") a--; while (b < chars.length && chars[b] !== " ") b++; // 낱말 단위
+    tm.tsel = { g: r.li.g, key: r.li.key, a, b }; setPick(); redraw();
+  });
+  let tdrag = false;
   let grab = null;
   cv.addEventListener("pointerdown", (e) => {
-    const p = pos(e), h = hit(p);
-    if (!h) { if (tm.editing) { tm.editing = false; redraw(); } return; }
+    const p = pos(e);
+    if (tm.tsel) { // 글자 고르기 모드
+      const r = lineAt(p);
+      if (r) { const i = charAt(r.li, r.x); tm.tsel = { g: r.li.g, key: r.li.key, a: i, b: i }; tdrag = true; cv.setPointerCapture(e.pointerId); e.preventDefault(); redraw(); return; }
+      tm.tsel = null; tm.pickSel = null; $("#tm-pickinfo").classList.remove("on"); $("#tm-pickinfo").textContent = "미리보기에서 글자를 두 번 클릭하면 글자를 골라 그 부분만 색을 바꿀 수 있습니다"; redraw(); return;
+    }
+    const h = hit(p);
+    if (!h) { // 글자가 아닌 곳: 사진 끌어서 옮기기
+      if (tm.editing) { tm.editing = false; }
+      if (tm.bmp) {
+        const z = +$("#tm-zoom").value / 100, b = tm.bmp, sc = Math.max(cv.width / b.width, cv.height / b.height) * z;
+        grab = { photo: true, p0: p, px0: +$("#tm-posx").value, py0: +$("#tm-posy").value, roomX: b.width * sc - cv.width, roomY: b.height * sc - cv.height };
+        if (grab.roomX < 2 && grab.roomY < 2) toast("사진을 옮기려면 먼저 확대하세요 (미리보기 위에서 마우스 휠, 또는 '사진 확대')", 3500);
+        cv.setPointerCapture(e.pointerId); e.preventDefault();
+      }
+      redraw(); return;
+    }
     if (h.key !== tm.sel || !tm.editing) select(h.key);
     const bx = tm.boxes[h.key], U = tm.L[h.key];
     grab = { ...h, p0: p, dx0: U.dx, dy0: U.dy, k0: U.k, rot0: U.rot, d0: Math.hypot(p.x - bx.cx, p.y - bx.cy), a0: Math.atan2(p.y - bx.cy, p.x - bx.cx), cx: bx.cx, cy: bx.cy };
@@ -1131,14 +1199,26 @@ function initThumbMaker() {
   });
   cv.addEventListener("pointermove", (e) => {
     const p = pos(e);
-    if (!grab) { const h = hit(p); cv.style.cursor = !h ? "default" : h.part === "size" ? "nwse-resize" : h.part === "rot" ? "grab" : "move"; return; }
+    if (tdrag) { const r = lineAt(p); if (r && r.li.key === tm.tsel.key) { tm.tsel.b = charAt(r.li, r.x); redraw(); } return; }
+    if (tm.tsel) { cv.style.cursor = lineAt(p) ? "text" : "default"; return; }
+    if (!grab) { const h = hit(p); cv.style.cursor = !h ? (tm.bmp ? "grab" : "default") : h.part === "size" ? "nwse-resize" : h.part === "rot" ? "grab" : "move"; return; }
+    if (grab.photo) {
+      if (grab.roomX >= 2) $("#tm-posx").value = Math.max(0, Math.min(100, grab.px0 - (p.x - grab.p0.x) / grab.roomX * 100));
+      if (grab.roomY >= 2) $("#tm-posy").value = Math.max(0, Math.min(100, grab.py0 - (p.y - grab.p0.y) / grab.roomY * 100));
+      redraw(); return;
+    }
     const U = tm.L[grab.key];
     if (grab.part === "move") { U.dx = grab.dx0 + (p.x - grab.p0.x); U.dy = grab.dy0 + (p.y - grab.p0.y); }
     else if (grab.part === "size") { U.k = Math.max(0.3, Math.min(3, grab.k0 * Math.hypot(p.x - grab.cx, p.y - grab.cy) / Math.max(1, grab.d0))); }
     else if (grab.part === "rot") { let r = grab.rot0 + (Math.atan2(p.y - grab.cy, p.x - grab.cx) - grab.a0) * 180 / Math.PI; r = ((r + 180) % 360 + 360) % 360 - 180; if (Math.abs(r) < 3) r = 0; U.rot = Math.max(-45, Math.min(45, r)); }
     syncPanel(); redraw();
   });
-  const up = () => { if (grab) { grab = null; saveL(); } };
+  const up = () => { if (tdrag) { tdrag = false; setPick(); redraw(); } if (grab) { const wasPhoto = grab.photo; grab = null; if (!wasPhoto) saveL(); } };
+  // 미리보기 위에서 마우스 휠 = 사진 확대·축소
+  cv.addEventListener("wheel", (e) => {
+    if (!tm.bmp) return; e.preventDefault();
+    const zEl = $("#tm-zoom"); zEl.value = Math.max(100, Math.min(250, +zEl.value - Math.sign(e.deltaY) * 5)); redraw();
+  }, { passive: false });
   cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
   // 저장 (점선·손잡이 없이)
   $("#tm-save").onclick = async () => {

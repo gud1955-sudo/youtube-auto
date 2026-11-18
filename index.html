@@ -202,7 +202,7 @@
               <i data-c="#ffffff" style="background:#ffffff"></i><i data-c="#ffe600" style="background:#ffe600"></i><i data-c="#ff2b2b" style="background:#ff2b2b"></i><i data-c="#39ff14" style="background:#39ff14"></i>
             </div>
           </div>
-          <p class="tm-pickinfo" id="tm-pickinfo">제목·대사 칸에서 글자를 드래그로 고르면 그 부분만 색을 바꿀 수 있습니다</p>
+          <p class="tm-pickinfo" id="tm-pickinfo">미리보기에서 글자를 두 번 클릭 → 끌어서 범위 고르기 → 색 누르기 (제목·대사 칸에서 드래그로 골라도 됨)</p>
           <div class="tm-seg" id="tm-seg" hidden>
             <button type="button" data-l="q">위 대사</button><button type="button" data-l="t1" class="on">제목 윗줄</button><button type="button" data-l="t2">제목 아랫줄</button>
           </div>
@@ -226,12 +226,12 @@
             <label>위아래 <input type="range" id="tm-posy" min="0" max="100" value="50"></label>
             <label>좌우 <input type="range" id="tm-posx" min="0" max="100" value="50"></label>
           </div>
-          <div class="tm-row"><small>사진을 확대해야 위아래·좌우로 옮길 수 있습니다</small></div>
+          <div class="tm-row"><small>미리보기 위에서 마우스 휠로 확대, 빈 곳(사진)을 끌면 위치 이동도 됩니다</small></div>
         </details>
       </div>
       <figure class="look tm-look">
         <canvas id="tm-canvas" width="1280" height="720"></canvas>
-        <figcaption>글자를 누르면 선택 — 끌면 이동 · 오른쪽 아래 □ 끌면 크기 · 위쪽 ○ 끌면 회전 (점선·손잡이는 저장 안 됨) · 1280×720으로 저장</figcaption>
+        <figcaption>글자를 누르면 선택 — 끌면 이동 · □ 크기 · ○ 회전 · <b>두 번 클릭하면 글자 골라 색 바꾸기</b> · 사진: 휠로 확대, 빈 곳 끌어서 이동 (점선·손잡이는 저장 안 됨)</figcaption>
       </figure>
     </div>
   </section>
@@ -330,7 +330,7 @@
 <audio id="player" hidden></audio>
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script src="lib/jszip.min.js?v=2"></script>
-<script src="app.js?v=61"></script>
+<script src="app.js?v=63"></script>
 <script src="gen.js?v=1"></script>
 <script src="match.js?v=3"></script>
 <script src="tts.js?v=8"></script>
