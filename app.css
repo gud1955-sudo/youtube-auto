@@ -238,3 +238,12 @@ textarea.pm-text { min-height: 120px; height: 140px; font-size: 13px; }
 #tm-canvas { touch-action: none; }
 .tm-pickinfo { margin: 0; font-size: 13px; color: var(--muted); }
 .tm-pickinfo.on { color: var(--accent); font-weight: 600; }
+.tm-ctl { gap: 10px !important; }
+.tm-title1 { width: 100%; box-sizing: border-box; height: 70px; min-height: 0 !important; font: inherit; font-size: 15px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; resize: vertical; }
+.tm-knob-c { grid-template-columns: 34px 1fr !important; }
+.tm-knob-c .tm-colors { grid-column: 2 !important; }
+.tm-savebtn { width: 100%; padding: 12px; font-size: 16px; }
+.tm-more { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: #fff; font-size: 14px; }
+.tm-more summary { cursor: pointer; font-weight: 600; }
+.tm-more[open] { display: flex; flex-direction: column; gap: 8px; }
+.tm-look { position: sticky; top: 12px; align-self: start; }

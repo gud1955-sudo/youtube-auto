@@ -968,7 +968,7 @@ async function drawThumbMaker(pickIdx, forSave = false) {
   if ($("#tm-shade").checked) { const g = ctx.createLinearGradient(0, H * 0.5, 0, H); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,.55)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
   const font = $("#tm-font").value.split("|"); try { await document.fonts.load(`${font[1]} 60px "${font[0]}"`, "가나다"); } catch { /* 기본 */ }
   const fontCss = (px) => `${font[1]} ${px}px "${font[0]}", "Malgun Gothic", sans-serif`;
-  const pi = pickIdx || +(document.querySelector('input[name="tm-pick"]:checked')?.value || 1);
+  const pi = 1; // 제목은 한 칸
   const raw = $(`#tm-title${pi}`).value;
   const q = $("#tm-quote").value.trim();
   const maxW = W - 36;
@@ -1044,7 +1044,7 @@ function initThumbMaker() {
   drop.ondragleave = () => drop.classList.remove("over");
   drop.ondrop = (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("over"); setThumbPhoto(e.dataTransfer.files[0]); };
   let raf = 0; const redraw = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => drawThumbMaker()); };
-  ["#tm-quote", "#tm-title1", "#tm-title2", "#tm-title3", "#tm-stretch", "#tm-area", "#tm-font", "#tm-shade", "#tm-posy", "#tm-posx", "#tm-zoom"].forEach((id) => { $(id).addEventListener("input", redraw); $(id).addEventListener("change", redraw); });
+  ["#tm-quote", "#tm-title1", "#tm-stretch", "#tm-area", "#tm-font", "#tm-shade", "#tm-posy", "#tm-posx", "#tm-zoom"].forEach((id) => { $(id).addEventListener("input", redraw); $(id).addEventListener("change", redraw); });
   for (const [id, key] of [["#tm-font", "tmFont"], ["#tm-stretch", "tmStretch2"], ["#tm-area", "tmArea2"], ["#tm-shade", "tmShade"]]) {
     const e = $(id); store.get(key, null).then((v) => { if (v != null) { if (e.type === "checkbox") e.checked = v; else e.value = v; redraw(); } });
     e.addEventListener("change", () => store.set(key, e.type === "checkbox" ? e.checked : e.value));
@@ -1055,17 +1055,10 @@ function initThumbMaker() {
   const syncPanel = () => {
     const U = tm.L[tm.sel];
     document.querySelectorAll("#tm-seg button").forEach((b) => b.classList.toggle("on", b.dataset.l === tm.sel));
-    $("#tm-ksize").value = Math.round(U.k * 100); $("#tm-ksize-v").textContent = Math.round(U.k * 100) + "%";
-    $("#tm-krot").value = Math.round(U.rot); $("#tm-krot-v").textContent = Math.round(U.rot) + "°";
     document.querySelectorAll("#tm-colors i").forEach((i) => i.classList.toggle("on", i.dataset.c === U.color));
   };
   const select = (key) => { tm.sel = key; tm.editing = true; syncPanel(); redraw(); };
   document.querySelectorAll("#tm-seg button").forEach((b) => (b.onclick = () => select(b.dataset.l)));
-  $("#tm-ksize").addEventListener("input", (e) => { tm.L[tm.sel].k = +e.target.value / 100; $("#tm-ksize-v").textContent = e.target.value + "%"; redraw(); });
-  $("#tm-ksize").addEventListener("change", saveL);
-  $("#tm-krot").addEventListener("input", (e) => { tm.L[tm.sel].rot = +e.target.value; $("#tm-krot-v").textContent = e.target.value + "°"; redraw(); });
-  $("#tm-krot").addEventListener("change", saveL);
-  $("#tm-krot").addEventListener("dblclick", () => { tm.L[tm.sel].rot = 0; syncPanel(); redraw(); saveL(); });
   // 색: 누르거나, 누른 채 좌우로 끌면 흰색·노랑·빨강·초록으로 바뀜
   const bar = $("#tm-colors");
   const colorAt = (e) => { const r = bar.getBoundingClientRect(); const i = Math.max(0, Math.min(3, Math.floor((e.clientX - r.left) / r.width * 4))); return bar.children[i].dataset.c; };
@@ -1090,9 +1083,9 @@ function initThumbMaker() {
     if (t.trim()) { tm.pickSel = { src: srcOf(el), t: t.trim() }; $("#tm-pickinfo").textContent = `고른 글자: "${t.trim()}" → 아래 색을 누르면 이 글자만 바뀝니다`; $("#tm-pickinfo").classList.add("on"); }
     else if (document.activeElement === el) { tm.pickSel = null; $("#tm-pickinfo").textContent = "제목·대사 칸에서 글자를 드래그로 고르면 그 부분만 색을 바꿀 수 있습니다"; $("#tm-pickinfo").classList.remove("on"); }
   };
-  for (const id of ["#tm-quote", "#tm-title1", "#tm-title2", "#tm-title3"]) { const el = $(id); for (const ev of ["select", "mouseup", "keyup"]) el.addEventListener(ev, () => trackSel(el)); }
+  for (const id of ["#tm-quote", "#tm-title1"]) { const el = $(id); for (const ev of ["select", "mouseup", "keyup"]) el.addEventListener(ev, () => trackSel(el)); }
   store.get("tmSpans", null).then((v) => { if (v) { tm.spans = { q: [], 1: [], 2: [], 3: [], ...v }; redraw(); } });
-  $("#tm-spanclear").onclick = () => { const src = tm.pickSel?.src ?? (tm.sel === "q" ? "q" : +(document.querySelector('input[name="tm-pick"]:checked')?.value || 1)); tm.spans[src] = []; store.set("tmSpans", tm.spans); tm.pickSel = null; $("#tm-pickinfo").classList.remove("on"); $("#tm-pickinfo").textContent = "글자별 색을 지웠습니다"; redraw(); };
+  $("#tm-spanclear").onclick = () => { const src = tm.pickSel?.src ?? (tm.sel === "q" ? "q" : 1); tm.spans[src] = []; if (src !== "q") tm.spans[1] = []; store.set("tmSpans", tm.spans); tm.pickSel = null; $("#tm-pickinfo").classList.remove("on"); $("#tm-pickinfo").textContent = "글자별 색을 지웠습니다"; redraw(); };
   $("#tm-kreset").onclick = () => { tm.L[tm.sel] = { ...TM_DEF[tm.sel] }; syncPanel(); redraw(); saveL(); };
   $("#tm-kreset-all").onclick = () => { tm.L = JSON.parse(JSON.stringify(TM_DEF)); tm.spans = { q: [], 1: [], 2: [], 3: [] }; store.set("tmSpans", tm.spans); syncPanel(); redraw(); saveL(); };
   // ── 미리보기에서 직접: 누르면 고르기, 끌면 이동, □ 크기, ○ 회전 ──
@@ -1128,30 +1121,15 @@ function initThumbMaker() {
   });
   const up = () => { if (grab) { grab = null; saveL(); } };
   cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
-  // 제목 고르기 (고른 제목이 미리보기에) — 칸을 누르거나 입력하면 그 제목으로
-  const pick = (i) => { const r = document.querySelector(`input[name="tm-pick"][value="${i}"]`); if (r && !r.checked) r.checked = true; document.querySelectorAll(".tm-title-row").forEach((row) => row.classList.toggle("on", row.dataset.i === String(i))); redraw(); };
-  document.querySelectorAll('input[name="tm-pick"]').forEach((r) => r.addEventListener("change", () => pick(r.value)));
-  [1, 2, 3].forEach((i) => { const t = $(`#tm-title${i}`); t.addEventListener("focus", () => pick(i)); t.addEventListener("input", () => pick(i)); });
-  // 다운로드: 제목 하나씩 / 3개 모두 (점선·손잡이 없이)
-  const saveOne = async (i) => {
-    if (!state.images.get(clipScene())) { toast("썸네일 사진을 먼저 넣어 주세요"); return false; }
-    if (!$(`#tm-title${i}`).value.trim()) return false;
-    await drawThumbMaker(i, true);
+  // 저장 (점선·손잡이 없이)
+  $("#tm-save").onclick = async () => {
+    if (!state.images.get(clipScene())) return toast("썸네일 사진을 먼저 넣어 주세요");
+    if (!$("#tm-title1").value.trim()) return toast("제목을 먼저 입력해 주세요");
+    await drawThumbMaker(1, true);
     const b = await new Promise((res) => cv.toBlob(res, "image/png"));
     const d = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    download(`썸네일_${d}_제목${i}.png`, b);
-    return true;
-  };
-  document.querySelectorAll(".tm-dl").forEach((btn) => (btn.onclick = async () => {
-    const i = +btn.dataset.i;
-    if (!$(`#tm-title${i}`).value.trim()) return toast(`제목 ${i}을 먼저 입력해 주세요`);
-    await saveOne(i); pick(i);
-  }));
-  $("#tm-save").onclick = async () => {
-    let n = 0;
-    for (const i of [1, 2, 3]) { if (await saveOne(i)) { n++; await sleep(400); } }
-    if (!n) return toast("제목을 먼저 입력해 주세요");
-    toast(`썸네일 ${n}개를 내려받았습니다`);
+    download(`썸네일_${d}.png`, b);
+    toast("썸네일을 저장했습니다");
     drawThumbMaker();
   };
   syncPanel();
